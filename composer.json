@@ -1,0 +1,14 @@
+{
+    "name": "semperton/container",
+    "description": "The Semperton Container component.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "psr/container": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Semperton\\Container\\": "/src"
+        }
+    }
+}
