@@ -110,7 +110,7 @@ class Container implements ContainerInterface
 		);
 	}
 
-	protected function getFunctionParams(ReflectionFunctionAbstract $function)
+	protected function getFunctionParams(ReflectionFunctionAbstract $function): array
 	{
 		$params = $function->getParameters();
 
