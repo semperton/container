@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Semperton\Container;
 
-use Semperton\Container\Exception\CreationFailException;
+use Semperton\Container\Exception\ContainerException;
 use Semperton\Container\Exception\NotFoundException;
 use Semperton\Container\Exception\ParameterResolveException;
 use Psr\Container\ContainerInterface;
@@ -100,12 +100,16 @@ class Container implements ContainerInterface
 
 			$constructor = $class->getConstructor();
 
-			$args = $constructor ? $this->getFunctionParams($constructor) : [];
+			try {
+				$args = $constructor ? $this->getFunctionParams($constructor) : [];
+			} catch (ParameterResolveException $e) {
+				throw new ContainerException($e->getMessage() . " of \"$name\"");
+			}
 
 			return $class->newInstanceArgs($args);
 		}
 
-		throw new CreationFailException(
+		throw new ContainerException(
 			sprintf('Unable to create "%s", missing or not instantiable', $name)
 		);
 	}
@@ -132,7 +136,7 @@ class Container implements ContainerInterface
 			} else {
 
 				throw new ParameterResolveException(
-					sprintf('Unable to resolve %s for %s', $param->getName(), $function->getName())
+					sprintf('Unable to resolve "%s" for %s', $param->getName(), $function->getName())
 				);
 			}
 		}

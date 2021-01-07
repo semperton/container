@@ -7,6 +7,6 @@ namespace Semperton\Container\Exception;
 use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
 
-class CreationFailException extends InvalidArgumentException implements ContainerExceptionInterface
+class ContainerException extends InvalidArgumentException implements ContainerExceptionInterface
 {
 }
