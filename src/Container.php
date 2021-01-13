@@ -87,9 +87,7 @@ class Container implements ContainerInterface
 			return $instance;
 		}
 
-		throw new NotFoundException(
-			sprintf('Entry for "%s" could not be resolved', $id)
-		);
+		throw new NotFoundException("Entry for '$id' could not be resolved");
 	}
 
 	protected function create(string $name)
@@ -109,9 +107,7 @@ class Container implements ContainerInterface
 			return $class->newInstanceArgs($args);
 		}
 
-		throw new ContainerException(
-			sprintf('Unable to create "%s", missing or not instantiable', $name)
-		);
+		throw new ContainerException("Unable to create '$name', missing or not instantiable");
 	}
 
 	protected function getFunctionParams(ReflectionFunctionAbstract $function): array
@@ -134,10 +130,9 @@ class Container implements ContainerInterface
 
 				$args[] = $param->getDefaultValue();
 			} else {
-
-				throw new ParameterResolveException(
-					sprintf('Unable to resolve "%s" for %s', $param->getName(), $function->getName())
-				);
+				$pname = $param->getName();
+				$fname = $function->getName();
+				throw new ParameterResolveException("Unable to resolve '$pname' for '$fname'");
 			}
 		}
 
