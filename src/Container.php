@@ -21,11 +21,11 @@ class Container implements ContainerInterface
 {
 	protected $entries = [];
 
+	protected $resolving = [];
+
 	public function __construct(array $definitions = [])
 	{
-		$entry = new Entry();
-		$entry->value = $this;
-		$entry->isResolved = true;
+		$entry = new Entry($this, true);
 
 		$this->entries[self::class] = $entry;
 		$this->entries[ContainerInterface::class] = $entry;
@@ -48,10 +48,7 @@ class Container implements ContainerInterface
 	public function set(string $id, $object): self
 	{
 		$resolved = ($object instanceof Closure) ? false : true;
-
-		$entry = new Entry();
-		$entry->value = $object;
-		$entry->isResolved = $resolved;
+		$entry = new Entry($object, $resolved);
 
 		$this->entries[$id] = $entry;
 
@@ -60,34 +57,47 @@ class Container implements ContainerInterface
 
 	public function get($id)
 	{
-		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
+		if (isset($this->entries[$id])) {
 
-			/** @var Entry */
-			$entry = $this->entries[$id];
-
-			if (!$entry->isResolved) {
-
-				$entry->value = ($entry->value)($this);
-				$entry->isResolved = true;
-			}
-
-			return $entry->value;
+			return $this->resolve($id);
 		}
 
 		if ($this->canCreate($id)) {
 
-			$instance = $this->create($id);
+			$factory = function () use ($id) {
+				return $this->create($id);
+			};
 
-			$entry = new Entry();
-			$entry->value = $instance;
-			$entry->isResolved = true;
+			$entry = new Entry($factory, false);
 
 			$this->entries[$id] = $entry;
 
-			return $instance;
+			return $this->resolve($id);
 		}
 
-		throw new NotFoundException("Entry for '$id' could not be resolved");
+		throw new NotFoundException("Entry for < $id > could not be resolved");
+	}
+
+	protected function resolve(string $id)
+	{
+		/** @var Entry */
+		$entry = $this->entries[$id];
+
+		if (!$entry->isResolved) {
+
+			if (isset($this->resolving[$id])) {
+				throw new ContainerException("Circular reference detected for < $id >");
+			}
+
+			$this->resolving[$id] = true;
+
+			$entry->value = ($entry->value)($this);
+			$entry->isResolved = true;
+
+			unset($this->resolving[$id]);
+		}
+
+		return $entry->value;
 	}
 
 	protected function create(string $name)
@@ -101,13 +111,13 @@ class Container implements ContainerInterface
 			try {
 				$args = $constructor ? $this->getFunctionParams($constructor) : [];
 			} catch (ParameterResolveException $e) {
-				throw new ContainerException($e->getMessage() . " of \"$name\"");
+				throw new ContainerException($e->getMessage() . " of < $name >");
 			}
 
 			return $class->newInstanceArgs($args);
 		}
 
-		throw new ContainerException("Unable to create '$name', missing or not instantiable");
+		throw new ContainerException("Unable to create < $name >, missing or not instantiable");
 	}
 
 	protected function getFunctionParams(ReflectionFunctionAbstract $function): array
@@ -132,7 +142,7 @@ class Container implements ContainerInterface
 			} else {
 				$pname = $param->getName();
 				$fname = $function->getName();
-				throw new ParameterResolveException("Unable to resolve '$pname' for '$fname'");
+				throw new ParameterResolveException("Unable to resolve < $pname > for < $fname >");
 			}
 		}
 
@@ -146,7 +156,7 @@ class Container implements ContainerInterface
 
 	public function has($id): bool
 	{
-		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries) || $this->canCreate($id)) {
+		if (isset($this->entries[$id]) || $this->canCreate($id)) {
 			return true;
 		}
 

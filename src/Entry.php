@@ -6,6 +6,12 @@ namespace Semperton\Container;
 
 final class Entry
 {
-	public $value = null;
-	public $isResolved = false;
+	public $value;
+	public $isResolved;
+
+	public function __construct($value, bool $resolved)
+	{
+		$this->value = $value;
+		$this->isResolved = $resolved;
+	}
 }
