@@ -7,8 +7,6 @@ use Semperton\Container\Container;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-$container = new Container();
-
 class A
 {
 	public $name;
@@ -35,20 +33,33 @@ class B
 	}
 }
 
-// $container->{A::class} = new A('test');
+class C
+{
+	protected $b;
+	public function __construct(B $b)
+	{
+		$this->b = $b;
+	}
+	public function hello(): string
+	{
+		return $this->b->hello() . ' Container';
+	}
+}
 
-$container->name = 'Semperton';
+$container = new Container([
 
-$container->{A::class} = function (ContainerInterface $c) {
+	'name' => 'Semperton',
+	A::class => function (ContainerInterface $c) {
 
-	$name = $c->get('name');
-	return new A($name);
-};
+		$name = $c->get('name');
+		return new A($name);
+	}
+]);
 
-$container->set(B::class, function (ContainerInterface $c) {
+$container = $container->with(B::class, function (ContainerInterface $c) {
 
 	$a = $c->get(A::class);
 	return new B('Hello', $a);
 });
 
-echo $container->get(B::class)->hello();
+echo $container->get(C::class)->hello();
