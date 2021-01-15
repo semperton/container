@@ -21,14 +21,14 @@ class Container implements ContainerInterface
 {
 	protected $entries = [];
 
+	protected $factories = [];
+
 	protected $resolving = [];
 
 	public function __construct(array $definitions = [])
 	{
-		$entry = new Entry($this, true);
-
-		$this->entries[self::class] = $entry;
-		$this->entries[ContainerInterface::class] = $entry;
+		$this->entries[self::class] = $this;
+		$this->entries[ContainerInterface::class] = $this;
 
 		foreach ($definitions as $def => $val) {
 			$this->set($def, $val);
@@ -47,32 +47,37 @@ class Container implements ContainerInterface
 
 	public function set(string $id, $object): self
 	{
-		$resolved = ($object instanceof Closure) ? false : true;
-		$entry = new Entry($object, $resolved);
+		if ($object instanceof Closure) {
 
-		$this->entries[$id] = $entry;
+			$this->factories[$id] = $object;
+			unset($this->entries[$id]);
+		} else {
+			$this->entries[$id] = $object;
+		}
 
 		return $this;
 	}
 
 	public function get($id)
 	{
-		if (isset($this->entries[$id])) {
+		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
 
-			return $this->resolve($id);
+			return $this->entries[$id];
+		}
+
+		if (isset($this->factories[$id])) {
+
+			$this->entries[$id] = $this->resolve($id);
+
+			return $this->entries[$id];
 		}
 
 		if ($this->canCreate($id)) {
 
-			$factory = function () use ($id) {
-				return $this->create($id);
-			};
+			$this->factories[$id] = $this->getClassFactory($id);
+			$this->entries[$id] = $this->resolve($id);
 
-			$entry = new Entry($factory, false);
-
-			$this->entries[$id] = $entry;
-
-			return $this->resolve($id);
+			return $this->entries[$id];
 		}
 
 		throw new NotFoundException("Entry for < $id > could not be resolved");
@@ -80,44 +85,39 @@ class Container implements ContainerInterface
 
 	protected function resolve(string $id)
 	{
-		/** @var Entry */
-		$entry = $this->entries[$id];
-
-		if (!$entry->isResolved) {
-
-			if (isset($this->resolving[$id])) {
-				throw new ContainerException("Circular reference detected for < $id >");
-			}
-
-			$this->resolving[$id] = true;
-
-			$entry->value = ($entry->value)($this);
-			$entry->isResolved = true;
-
-			unset($this->resolving[$id]);
+		if (isset($this->resolving[$id])) {
+			throw new ContainerException("Circular reference detected for < $id >");
 		}
 
-		return $entry->value;
+		$this->resolving[$id] = true;
+
+		$object = $this->factories[$id]($this);
+
+		unset($this->resolving[$id]);
+
+		return $object;
 	}
 
-	protected function create(string $name)
+	protected function getClassFactory(string $name): Closure
 	{
 		$class = new ReflectionClass($name);
 
-		if ($class->isInstantiable()) {
-
-			$constructor = $class->getConstructor();
-
-			try {
-				$args = $constructor ? $this->getFunctionParams($constructor) : [];
-			} catch (ParameterResolveException $e) {
-				throw new ContainerException($e->getMessage() . " of < $name >");
-			}
-
-			return $class->newInstanceArgs($args);
+		if (!$class->isInstantiable()) {
+			throw new ContainerException("Unable to create < $name >, not instantiable");
 		}
 
-		throw new ContainerException("Unable to create < $name >, missing or not instantiable");
+		$constructor = $class->getConstructor();
+
+		try {
+			$args = $constructor ? $this->getFunctionParams($constructor) : [];
+		} catch (ParameterResolveException $e) {
+			throw new ContainerException($e->getMessage() . " of < $name >");
+		}
+
+		return function () use ($name, $args) {
+			return new $name(...$args);
+			// return $class->newInstanceArgs($args);
+		};
 	}
 
 	protected function getFunctionParams(ReflectionFunctionAbstract $function): array
@@ -156,15 +156,23 @@ class Container implements ContainerInterface
 
 	public function has($id): bool
 	{
-		if (isset($this->entries[$id]) || $this->canCreate($id)) {
+		if (
+			isset($this->entries[$id]) || array_key_exists($id, $this->entries) ||
+			isset($this->factories[$id]) || $this->canCreate($id)
+		) {
 			return true;
 		}
 
 		return false;
 	}
 
-	public function entries(): array
+	public function listEntries(): array
 	{
 		return array_keys($this->entries);
+	}
+
+	public function listFactories(): array
+	{
+		return array_keys($this->factories);
 	}
 }
