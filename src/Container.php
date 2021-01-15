@@ -27,73 +27,68 @@ class Container implements ContainerInterface
 
 	public function __construct(array $definitions = [])
 	{
-		$this->entries[self::class] = $this;
-		$this->entries[ContainerInterface::class] = $this;
-
-		foreach ($definitions as $def => $val) {
-			$this->set($def, $val);
+		foreach ($definitions as $name => $object) {
+			$this->add($name, $object);
 		}
 	}
 
-	public function __set(string $id, $object)
+	protected function add(string $name, $object): void
 	{
-		$this->set($id, $object);
-	}
+		unset($this->entries[$name], $this->factories[$name]);
 
-	public function __get(string $id)
-	{
-		return $this->get($id);
-	}
-
-	public function set(string $id, $object): self
-	{
 		if ($object instanceof Closure) {
 
-			$this->factories[$id] = $object;
-			unset($this->entries[$id]);
+			$this->factories[$name] = $object;
 		} else {
-			$this->entries[$id] = $object;
+			$this->entries[$name] = $object;
 		}
-
-		return $this;
 	}
 
-	public function get($id)
+	public function with(string $name, $object): Container
 	{
-		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
+		$container = clone $this;
 
-			return $this->entries[$id];
-		}
+		$container->add($name, $object);
 
-		if (isset($this->factories[$id])) {
-
-			$this->entries[$id] = $this->resolve($id);
-
-			return $this->entries[$id];
-		}
-
-		if ($this->canCreate($id)) {
-
-			$this->factories[$id] = $this->getClassFactory($id);
-			$this->entries[$id] = $this->resolve($id);
-
-			return $this->entries[$id];
-		}
-
-		throw new NotFoundException("Entry for < $id > could not be resolved");
+		return $container;
 	}
 
-	protected function resolve(string $id)
+	public function get($name)
 	{
-		if (isset($this->resolving[$id])) {
-			throw new ContainerException("Circular reference detected for < $id >");
+		if (isset($this->entries[$name]) || array_key_exists($name, $this->entries)) {
+
+			return $this->entries[$name];
 		}
 
-		$this->resolving[$id] = true;
+		if (isset($this->factories[$name])) {
 
-		$object = $this->factories[$id]($this);
+			$this->entries[$name] = $this->resolve($name);
 
-		unset($this->resolving[$id]);
+			return $this->entries[$name];
+		}
+
+		if ($this->canCreate($name)) {
+
+			$this->factories[$name] = $this->getClassFactory($name);
+			$this->entries[$name] = $this->resolve($name);
+
+			return $this->entries[$name];
+		}
+
+		throw new NotFoundException("Entry for < $name > could not be resolved");
+	}
+
+	protected function resolve(string $name)
+	{
+		if (isset($this->resolving[$name])) {
+			throw new ContainerException("Circular reference detected for < $name >");
+		}
+
+		$this->resolving[$name] = true;
+
+		$object = $this->factories[$name]($this);
+
+		unset($this->resolving[$name]);
 
 		return $object;
 	}
@@ -109,7 +104,7 @@ class Container implements ContainerInterface
 		$constructor = $class->getConstructor();
 
 		try {
-			$args = $constructor ? $this->getFunctionParams($constructor) : [];
+			$args = $constructor ? $this->getFunctionArgs($constructor) : [];
 		} catch (ParameterResolveException $e) {
 			throw new ContainerException($e->getMessage() . " of < $name >");
 		}
@@ -120,7 +115,7 @@ class Container implements ContainerInterface
 		};
 	}
 
-	protected function getFunctionParams(ReflectionFunctionAbstract $function): array
+	protected function getFunctionArgs(ReflectionFunctionAbstract $function): array
 	{
 		$params = $function->getParameters();
 
@@ -149,16 +144,16 @@ class Container implements ContainerInterface
 		return $args;
 	}
 
-	protected function canCreate(string $class): bool
+	protected function canCreate(string $name): bool
 	{
-		return class_exists($class);
+		return class_exists($name);
 	}
 
-	public function has($id): bool
+	public function has($name): bool
 	{
 		if (
-			isset($this->entries[$id]) || array_key_exists($id, $this->entries) ||
-			isset($this->factories[$id]) || $this->canCreate($id)
+			isset($this->entries[$name]) || array_key_exists($name, $this->entries) ||
+			isset($this->factories[$name]) || $this->canCreate($name)
 		) {
 			return true;
 		}
