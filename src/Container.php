@@ -28,11 +28,11 @@ class Container implements ContainerInterface
 	public function __construct(array $definitions = [])
 	{
 		foreach ($definitions as $name => $object) {
-			$this->add($name, $object);
+			$this->set($name, $object);
 		}
 	}
 
-	protected function add(string $name, $object): void
+	protected function set(string $name, $object): void
 	{
 		unset($this->entries[$name], $this->factories[$name]);
 
@@ -48,7 +48,7 @@ class Container implements ContainerInterface
 	{
 		$container = clone $this;
 
-		$container->add($name, $object);
+		$container->set($name, $object);
 
 		return $container;
 	}
