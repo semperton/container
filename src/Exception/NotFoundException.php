@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Semperton\Container\Exception;
 
-use InvalidArgumentException;
 use Psr\Container\NotFoundExceptionInterface;
+use Exception;
 
-class NotFoundException extends InvalidArgumentException implements NotFoundExceptionInterface
+class NotFoundException extends Exception implements NotFoundExceptionInterface
 {
 }

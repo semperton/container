@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Semperton\Container\Exception;
 
-use InvalidArgumentException;
 use Psr\Container\ContainerExceptionInterface;
+use Exception;
 
-class ContainerException extends InvalidArgumentException implements ContainerExceptionInterface
+class CircularReferenceException extends Exception implements ContainerExceptionInterface
 {
 }

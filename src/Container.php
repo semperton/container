@@ -4,19 +4,15 @@ declare(strict_types=1);
 
 namespace Semperton\Container;
 
-use Semperton\Container\Exception\ContainerException;
+use Psr\Container\ContainerInterface;
 use Semperton\Container\Exception\NotFoundException;
 use Semperton\Container\Exception\ParameterResolveException;
-use Psr\Container\ContainerInterface;
+use Semperton\Container\Exception\CircularReferenceException;
+use Semperton\Container\Exception\NotInstantiableException;
 use ReflectionClass;
 use ReflectionFunctionAbstract;
 use Closure;
 
-/**
- * Simple autowiring dependency container.
- * It holds values and creates instances ONCE.
- * It does not work as a factory class.
- */
 class Container implements ContainerInterface
 {
 	protected $entries = [];
@@ -81,7 +77,7 @@ class Container implements ContainerInterface
 	protected function resolve(string $name)
 	{
 		if (isset($this->resolving[$name])) {
-			throw new ContainerException("Circular reference detected for < $name >");
+			throw new CircularReferenceException("Circular reference detected for < $name >");
 		}
 
 		$this->resolving[$name] = true;
@@ -98,7 +94,7 @@ class Container implements ContainerInterface
 		$class = new ReflectionClass($name);
 
 		if (!$class->isInstantiable()) {
-			throw new ContainerException("Unable to create < $name >, not instantiable");
+			throw new NotInstantiableException("Unable to create < $name >, not instantiable");
 		}
 
 		$constructor = $class->getConstructor();
@@ -106,7 +102,7 @@ class Container implements ContainerInterface
 		try {
 			$args = $constructor ? $this->getFunctionArgs($constructor) : [];
 		} catch (ParameterResolveException $e) {
-			throw new ContainerException($e->getMessage() . " of < $name >");
+			throw new ParameterResolveException($e->getMessage() . " of < $name >");
 		}
 
 		return function () use ($name, $args) {
@@ -137,7 +133,7 @@ class Container implements ContainerInterface
 			} else {
 				$pname = $param->getName();
 				$fname = $function->getName();
-				throw new ParameterResolveException("Unable to resolve < $pname > for < $fname >");
+				throw new ParameterResolveException("Unable to resolve < \$$pname > for < $fname >");
 			}
 		}
 
