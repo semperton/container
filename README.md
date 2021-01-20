@@ -1,12 +1,12 @@
-<a style="float:left" href="https://github.com/semperton">
+<div align="center">
+<a href="https://github.com/semperton">
 <img src="https://avatars0.githubusercontent.com/u/76976189?s=100" alt="Semperton" />
 </a>
-<div style="vertical-align:top;margin-left:120px">
 <h1>Semperton Container</h1>
-<h3>A lightweight PSR-11 container implementation with reflection based autowiring.</h3>
+<h4>A lightweight PSR-11 container implementation with reflection based autowiring.</h4>
 </div>
 
-<hr style="clear:both;margin-top:20px;margin-bottom:20px"/>
+<hr/>
 
 ## Installation
 
