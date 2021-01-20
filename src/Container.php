@@ -157,13 +157,17 @@ class Container implements ContainerInterface
 		return false;
 	}
 
-	public function listEntries(): array
+	public function entries(): array
 	{
-		return array_keys($this->entries);
-	}
+		$entries = array_unique(
+			array_merge(
+				array_keys($this->entries),
+				array_keys($this->factories)
+			)
+		);
 
-	public function listFactories(): array
-	{
-		return array_keys($this->factories);
+		sort($entries);
+		
+		return $entries;
 	}
 }
