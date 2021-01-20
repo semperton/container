@@ -19,7 +19,7 @@ Container requires PHP 7.1+
 
 ## Interface
 
-The container ships with five public methods:
+The container ships with four public methods:
 
 ```php
 with(string $id, $value): Container // add a container entry
