@@ -67,6 +67,30 @@ final class ContainerTest extends TestCase
 		$this->assertEquals(42, $closure());
 	}
 
+	public function testGetInlineFactory()
+	{
+		$container = new Container();
+		$container = $container->with('factory', function (ContainerInterface $c) {
+			$std = $c->get(stdClass::class);
+			return new class($std)
+			{
+				public function __construct(stdClass $std)
+				{
+					$this->std = $std;
+				}
+				public function create()
+				{
+					return new ParameterClass($this->std, 42);
+				}
+			};
+		});
+		$factory = $container->get('factory');
+		$obj1 = $factory->create();
+		$obj2 = $factory->create();
+		$this->assertInstanceOf(ParameterClass::class, $obj1);
+		$this->assertFalse($obj1 === $obj2);
+	}
+
 	public function testGetNotFound()
 	{
 		$this->expectException(NotFoundException::class);
