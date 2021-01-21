@@ -166,8 +166,8 @@ class Container implements ContainerInterface
 			)
 		);
 
-		sort($entries);
-		
+		sort($entries, SORT_NATURAL | SORT_FLAG_CASE);
+
 		return $entries;
 	}
 }
