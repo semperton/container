@@ -12,16 +12,27 @@ use Semperton\Container\Exception\ParameterResolveException;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-final class PrivateClass
+final class A
 {
-	private function __construct()
+}
+
+final class B
+{
+	public function __construct(A $a, int $count = 0)
 	{
 	}
 }
 
-final class ParameterClass
+final class C
 {
-	public function __construct(stdClass $obj, int $count)
+	public function __construct(B $b, ?int $count)
+	{
+	}
+}
+
+final class P
+{
+	private function __construct()
 	{
 	}
 }
@@ -44,7 +55,7 @@ final class ContainerTest extends TestCase
 		$container = new Container(['foo' => 'bar']);
 		$this->assertTrue($container->has('foo'));
 		$this->assertFalse($container->has('bar'));
-		$this->assertTrue($container->has(stdClass::class));
+		$this->assertTrue($container->has(A::class));
 	}
 
 	public function testGetFactory()
@@ -71,23 +82,24 @@ final class ContainerTest extends TestCase
 	{
 		$container = new Container();
 		$container = $container->with('factory', function (ContainerInterface $c) {
-			$std = $c->get(stdClass::class);
-			return new class($std)
+			$b = $c->get(B::class);
+			return new class($b)
 			{
-				public function __construct(stdClass $std)
+				protected $b;
+				public function __construct(B $b)
 				{
-					$this->std = $std;
+					$this->b = $b;
 				}
 				public function create()
 				{
-					return new ParameterClass($this->std, 42);
+					return new C($this->b, 42);
 				}
 			};
 		});
 		$factory = $container->get('factory');
 		$obj1 = $factory->create();
 		$obj2 = $factory->create();
-		$this->assertInstanceOf(ParameterClass::class, $obj1);
+		$this->assertInstanceOf(C::class, $obj1);
 		$this->assertFalse($obj1 === $obj2);
 	}
 
@@ -101,14 +113,14 @@ final class ContainerTest extends TestCase
 	public function testGetAutowire()
 	{
 		$container = new Container();
-		$this->assertInstanceOf(stdClass::class, $container->get(stdClass::class));
+		$this->assertInstanceOf(B::class, $container->get(B::class));
 	}
 
 	public function testGetSingleInstance()
 	{
 		$container = new Container();
-		$obj1 = $container->get(stdClass::class);
-		$obj2 = $container->get(stdClass::class);
+		$obj1 = $container->get(A::class);
+		$obj2 = $container->get(A::class);
 		$this->assertEquals($obj1, $obj2);
 	}
 
@@ -125,14 +137,14 @@ final class ContainerTest extends TestCase
 	{
 		$this->expectException(NotInstantiableException::class);
 		$container = new Container();
-		$container->get(PrivateClass::class);
+		$container->get(P::class);
 	}
 
 	public function testParameterResolve()
 	{
 		$this->expectException(ParameterResolveException::class);
 		$container = new Container();
-		$container->get(ParameterClass::class);
+		$container->get(C::class);
 	}
 
 	public function testContainerImmutability()
@@ -142,5 +154,24 @@ final class ContainerTest extends TestCase
 		$newContainer = $container->with('foo', 'bar');
 		$this->assertEquals($container, $oldContainer);
 		$this->assertNotEquals($container, $newContainer);
+	}
+
+	public function testListEntries()
+	{
+		$container = new Container([
+			'foo' => null,
+			'bar' => function () {
+				return 42;
+			},
+			C::class => function(Container $c){
+				$b = $c->get(B::class);
+				return new C($b, 1);
+			}
+		]);
+		$obj = $container->get(C::class);
+		$entries = $container->entries();
+		$this->assertInstanceOf(C::class, $obj);
+		$expected = [A::class, B::class, 'bar', C::class, 'foo'];
+		$this->assertSame($expected, $entries);
 	}
 }
