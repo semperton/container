@@ -1,12 +1,13 @@
 <div align="center">
 <a href="https://github.com/semperton">
-<img src="https://avatars0.githubusercontent.com/u/76976189?s=140" alt="Semperton" />
+<img src="https://avatars0.githubusercontent.com/u/76976189?s=140" alt="Semperton">
 </a>
 <h1>Semperton Container</h1>
-<h4>A lightweight PSR-11 container implementation with reflection based autowiring.</h4>
+<h4>A lightweight PSR-11 container implementation<br>with reflection based autowiring.</h4>
 </div>
-
-<hr/>
+<br>
+<hr>
+<br>
 
 ## Installation
 
@@ -35,14 +36,32 @@ Classes can be resolved automatically as long as they do not require any special
 ```php
 use Semperton\Container\Container;
 
-class SimpleClass{
-	public function __construct(stdclass $obj, int $num = 1){}
+class World
+{
+	public function __toString()
+	{
+		return 'World';
+	}
+}
+
+class Hello
+{
+	protected $world;
+	public function __construct(World $world)
+	{
+		$this->world = $world;
+	}
+	public function print()
+	{
+		echo "Hello {$this->world}";
+	}
 }
 
 $container = new Container();
-$simple = $container->get(SimpleClass::class);
+$hello = $container->get(Hello::class);
 
-$simple instanceof SimpleClass::class // true
+$hello instanceof Hello::class // true
+$hello->print(); // 'Hello World'
 ```
 
 Note that the container only creates instances once. It does not work as a factory. You should consider the Factory Pattern instead:
@@ -50,12 +69,14 @@ Note that the container only creates instances once. It does not work as a facto
 ```php
 use Semperton\Container\Container;
 
-class Mail{
-	public function send(){}
+class Mail
+{
 }
 
-class MailFactory{
-	public function createMail(){
+class MailFactory
+{
+	public function createMail()
+	{
 		return new Mail();
 	}
 }
@@ -66,8 +87,8 @@ $factory2 = $container->get(MailFactory::class);
 
 $factory1 === $factory2 // true
 
-$mail1 = $factory->createMail();
-$mail2 = $factory->createMail();
+$mail1 = $factory1->createMail();
+$mail2 = $factory1->createMail();
 
 $mail1 === $mail2 // false
 ```
@@ -82,12 +103,13 @@ use Semperton\Container\Container;
 $container = new Container([
 
 	'mail' => 'local@host.local',
-	'closure' => function(){
-		return function(){
+	'closure' => function () {
+		return function () {
 			return 42;
 		};
 	},
-	MailFactory::class => function(Container $c){
+	MailFactory::class => new MailFactory('local@host.local'), // avoid this, instead do
+	MailFactory::class => function (Container $c) { // lazy instantiation with a factory
 
 		$sender = $c->get('mail');
 		return new MailFactory($sender);
