@@ -61,7 +61,10 @@ class MailFactory{
 }
 
 $container = new Container();
-$factory = $container->get(MailFactory::class);
+$factory1 = $container->get(MailFactory::class);
+$factory2 = $container->get(MailFactory::class);
+
+$factory1 === $factory2 // true
 
 $mail1 = $factory->createMail();
 $mail2 = $factory->createMail();
@@ -98,7 +101,7 @@ $container->get(MailFactory::class); // instance of MailFactory
 
 ## Immutability
 
-Once the container ist created, it is immutable. If you like to add an entry after instantiation, remember that the ```with()``` method always returns a new container instance:
+Once the container ist created, it is immutable. If you like to add an entry after instantiation, keep in mind that the ```with()``` method always returns a new container instance:
 
 ```php
 use Semperton\Container\Container;
