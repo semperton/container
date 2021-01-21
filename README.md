@@ -7,7 +7,6 @@
 </div>
 <br>
 <hr>
-<br>
 
 ## Installation
 
