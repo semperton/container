@@ -5,7 +5,6 @@
 <h1>Semperton Container</h1>
 <h4>A lightweight PSR-11 container implementation<br>with reflection based autowiring.</h4>
 </div>
-<br>
 <hr>
 
 ## Installation
