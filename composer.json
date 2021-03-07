@@ -11,6 +11,9 @@
             "Semperton\\Container\\": "src/"
         }
     },
+    "scripts": {
+		"test": "phpunit tests"
+	},
     "require-dev": {
         "phpunit/phpunit": "^9.5"
     }
