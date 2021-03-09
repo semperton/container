@@ -4,26 +4,31 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "661e559f3f8388eb90df79ab1c6961f5",
+    "content-hash": "64ded9d1c3625d8a55653e64d706d41f",
     "packages": [
         {
             "name": "psr/container",
-            "version": "1.1.1",
+            "version": "2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-fig/container.git",
-                "reference": "8622567409010282b7aeebe4bb841fe98b58dcaf"
+                "reference": "68f5200c33f18c018db17eb869d4b0f97da17cad"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/container/zipball/8622567409010282b7aeebe4bb841fe98b58dcaf",
-                "reference": "8622567409010282b7aeebe4bb841fe98b58dcaf",
+                "url": "https://api.github.com/repos/php-fig/container/zipball/68f5200c33f18c018db17eb869d4b0f97da17cad",
+                "reference": "68f5200c33f18c018db17eb869d4b0f97da17cad",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.2.0"
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "Psr\\Container\\": "src/"
@@ -50,9 +55,9 @@
             ],
             "support": {
                 "issues": "https://github.com/php-fig/container/issues",
-                "source": "https://github.com/php-fig/container/tree/1.1.1"
+                "source": "https://github.com/php-fig/container/tree/2.0.0"
             },
-            "time": "2021-03-05T17:36:06+00:00"
+            "time": "2021-03-05T16:02:18+00:00"
         }
     ],
     "packages-dev": [
