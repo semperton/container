@@ -23,68 +23,68 @@ class Container implements ContainerInterface
 
 	public function __construct(array $definitions = [])
 	{
-		foreach ($definitions as $name => $object) {
-			$this->set($name, $object);
+		foreach ($definitions as $id => $object) {
+			$this->set($id, $object);
 		}
 	}
 
-	protected function set(string $name, $object): void
+	protected function set(string $id, $object): void
 	{
-		unset($this->entries[$name], $this->factories[$name]);
+		unset($this->entries[$id], $this->factories[$id]);
 
 		if ($object instanceof Closure) {
 
-			$this->factories[$name] = $object;
+			$this->factories[$id] = $object;
 		} else {
-			$this->entries[$name] = $object;
+			$this->entries[$id] = $object;
 		}
 	}
 
-	public function with(string $name, $object): Container
+	public function with(string $id, $object): Container
 	{
 		$container = clone $this;
 
-		$container->set($name, $object);
+		$container->set($id, $object);
 
 		return $container;
 	}
 
-	public function get($name)
+	public function get(string $id)
 	{
-		if (isset($this->entries[$name]) || array_key_exists($name, $this->entries)) {
+		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
 
-			return $this->entries[$name];
+			return $this->entries[$id];
 		}
 
-		if (isset($this->factories[$name])) {
+		if (isset($this->factories[$id])) {
 
-			$this->entries[$name] = $this->resolve($name);
+			$this->entries[$id] = $this->resolve($id);
 
-			return $this->entries[$name];
+			return $this->entries[$id];
 		}
 
-		if ($this->canCreate($name)) {
+		if ($this->canCreate($id)) {
 
-			$this->factories[$name] = $this->getClassFactory($name);
-			$this->entries[$name] = $this->resolve($name);
+			$this->factories[$id] = $this->getClassFactory($id);
+			$this->entries[$id] = $this->resolve($id);
 
-			return $this->entries[$name];
+			return $this->entries[$id];
 		}
 
-		throw new NotFoundException("Entry for < $name > could not be resolved");
+		throw new NotFoundException("Entry for < $id > could not be resolved");
 	}
 
-	protected function resolve(string $name)
+	protected function resolve(string $id)
 	{
-		if (isset($this->resolving[$name])) {
-			throw new CircularReferenceException("Circular reference detected for < $name >");
+		if (isset($this->resolving[$id])) {
+			throw new CircularReferenceException("Circular reference detected for < $id >");
 		}
 
-		$this->resolving[$name] = true;
+		$this->resolving[$id] = true;
 
-		$object = $this->factories[$name]($this);
+		$object = $this->factories[$id]($this);
 
-		unset($this->resolving[$name]);
+		unset($this->resolving[$id]);
 
 		return $object;
 	}
@@ -145,11 +145,11 @@ class Container implements ContainerInterface
 		return class_exists($name);
 	}
 
-	public function has($name): bool
+	public function has(string $id): bool
 	{
 		if (
-			isset($this->entries[$name]) || array_key_exists($name, $this->entries) ||
-			isset($this->factories[$name]) || $this->canCreate($name)
+			isset($this->entries[$id]) || array_key_exists($id, $this->entries) ||
+			isset($this->factories[$id]) || $this->canCreate($id)
 		) {
 			return true;
 		}
