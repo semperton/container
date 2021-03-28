@@ -21,8 +21,12 @@ class Container implements ContainerInterface
 
 	protected $resolving = [];
 
-	public function __construct(iterable $definitions = [])
+	protected $autowire;
+
+	public function __construct(iterable $definitions = [], bool $autowire = true)
 	{
+		$this->autowire = $autowire;
+
 		foreach ($definitions as $id => $object) {
 			$this->set($id, $object);
 		}
@@ -63,7 +67,7 @@ class Container implements ContainerInterface
 			return $this->entries[$id];
 		}
 
-		if ($this->canCreate($id)) {
+		if ($this->autowire && $this->canCreate($id)) {
 
 			$this->factories[$id] = $this->getClassFactory($id);
 			$this->entries[$id] = $this->resolve($id);
