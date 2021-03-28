@@ -21,7 +21,7 @@ class Container implements ContainerInterface
 
 	protected $resolving = [];
 
-	public function __construct(array $definitions = [])
+	public function __construct(iterable $definitions = [])
 	{
 		foreach ($definitions as $id => $object) {
 			$this->set($id, $object);
