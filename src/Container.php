@@ -27,6 +27,10 @@ class Container implements ContainerInterface
 	{
 		$this->autowire = $autowire;
 
+		// register self
+		$this->entries[self::class] = $this;
+		$this->entries[ContainerInterface::class] = $this;
+
 		foreach ($definitions as $id => $object) {
 			$this->set($id, $object);
 		}
