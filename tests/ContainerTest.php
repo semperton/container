@@ -10,8 +10,6 @@ use Semperton\Container\Exception\NotFoundException;
 use Semperton\Container\Exception\NotInstantiableException;
 use Semperton\Container\Exception\ParameterResolveException;
 
-require_once __DIR__ . '/../vendor/autoload.php';
-
 final class A
 {
 }
@@ -163,7 +161,7 @@ final class ContainerTest extends TestCase
 			'bar' => function () {
 				return 42;
 			},
-			C::class => function(Container $c){
+			C::class => function (Container $c) {
 				$b = $c->get(B::class);
 				return new C($b, 1);
 			}
@@ -171,7 +169,15 @@ final class ContainerTest extends TestCase
 		$obj = $container->get(C::class);
 		$entries = $container->entries();
 		$this->assertInstanceOf(C::class, $obj);
-		$expected = [A::class, B::class, 'bar', C::class, 'foo'];
+		$expected = [
+			A::class,
+			B::class,
+			'bar',
+			C::class,
+			'foo',
+			ContainerInterface::class,
+			Container::class
+		];
 		$this->assertSame($expected, $entries);
 	}
 }
