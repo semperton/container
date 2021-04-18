@@ -9,20 +9,36 @@ use Semperton\Container\Exception\NotFoundException;
 use Semperton\Container\Exception\ParameterResolveException;
 use Semperton\Container\Exception\CircularReferenceException;
 use Semperton\Container\Exception\NotInstantiableException;
-use ReflectionClass;
 use ReflectionFunctionAbstract;
+use ReflectionClass;
+use ReflectionNamedType;
 use Closure;
 
 class Container implements ContainerInterface
 {
+	/**
+	 * @var array<string, mixed>
+	 */
 	protected $entries = [];
 
+	/**
+	 * @var array<string, Closure>
+	 */
 	protected $factories = [];
 
+	/**
+	 * @var array<string, true>
+	 */
 	protected $resolving = [];
 
+	/**
+	 * @var bool
+	 */
 	protected $autowire;
 
+	/**
+	 * @param iterable<string, mixed> $definitions
+	 */
 	public function __construct(iterable $definitions = [], bool $autowire = true)
 	{
 		$this->autowire = $autowire;
@@ -31,28 +47,34 @@ class Container implements ContainerInterface
 		$this->entries[self::class] = $this;
 		$this->entries[ContainerInterface::class] = $this;
 
-		foreach ($definitions as $id => $object) {
-			$this->set($id, $object);
+		foreach ($definitions as $id => $entry) {
+			$this->set($id, $entry);
 		}
 	}
 
-	protected function set(string $id, $object): void
+	/**
+	 * @param mixed $entry
+	 */
+	protected function set(string $id, $entry): void
 	{
 		unset($this->entries[$id], $this->factories[$id]);
 
-		if ($object instanceof Closure) {
+		if ($entry instanceof Closure) {
 
-			$this->factories[$id] = $object;
+			$this->factories[$id] = $entry;
 		} else {
-			$this->entries[$id] = $object;
+			$this->entries[$id] = $entry;
 		}
 	}
 
-	public function with(string $id, $object): Container
+	/**
+	 * @param mixed $entry
+	 */
+	public function with(string $id, $entry): Container
 	{
 		$container = clone $this;
 
-		$container->set($id, $object);
+		$container->set($id, $entry);
 
 		return $container;
 	}
@@ -82,6 +104,9 @@ class Container implements ContainerInterface
 		throw new NotFoundException("Entry for < $id > could not be resolved");
 	}
 
+	/**
+	 * @return mixed
+	 */
 	protected function resolve(string $id)
 	{
 		if (isset($this->resolving[$id])) {
@@ -90,15 +115,18 @@ class Container implements ContainerInterface
 
 		$this->resolving[$id] = true;
 
-		$object = $this->factories[$id]($this);
+		$entry = $this->factories[$id]($this);
 
 		unset($this->resolving[$id]);
 
-		return $object;
+		return $entry;
 	}
 
 	protected function getClassFactory(string $name): Closure
 	{
+		/**
+		 * @psalm-suppress ArgumentTypeCoercion
+		 */
 		$class = new ReflectionClass($name);
 
 		if (!$class->isInstantiable()) {
@@ -113,12 +141,15 @@ class Container implements ContainerInterface
 			throw new ParameterResolveException($e->getMessage() . " of < $name >");
 		}
 
-		return function () use ($name, $args) {
-			return new $name(...$args);
-			// return $class->newInstanceArgs($args);
+		return function () use ($class, $args) {
+			// return new $name(...$args);
+			return $class->newInstanceArgs($args);
 		};
 	}
 
+	/**
+	 * @return array<int, mixed>
+	 */
 	protected function getFunctionArgs(ReflectionFunctionAbstract $function): array
 	{
 		$params = $function->getParameters();
@@ -127,7 +158,7 @@ class Container implements ContainerInterface
 
 		foreach ($params as $param) {
 
-			/** @var ReflectionNamedType */
+			/** @var null|ReflectionNamedType */
 			$type = $param->getType();
 
 			if ($type && !$type->isBuiltin()) {
