@@ -14,7 +14,7 @@ use ReflectionClass;
 use ReflectionNamedType;
 use Closure;
 
-class Container implements ContainerInterface
+final class Container implements ContainerInterface
 {
 	/**
 	 * @var array<string, mixed>
