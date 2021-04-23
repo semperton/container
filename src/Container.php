@@ -135,17 +135,10 @@ final class Container implements ContainerInterface
 
 		$constructor = $class->getConstructor();
 
-		if ($constructor) {
+		$args = $constructor ? $this->getFunctionArgs($constructor) : [];
 
-			$args = $this->getFunctionArgs($constructor);
-
-			return function () use ($class, $args) {
-				return $class->newInstanceArgs($args);
-			};
-		}
-
-		return function () use ($class) {
-			return $class->newInstanceWithoutConstructor();
+		return function () use ($class, $args) {
+			return $class->newInstanceArgs($args);
 		};
 	}
 
