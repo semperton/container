@@ -135,15 +135,17 @@ final class Container implements ContainerInterface
 
 		$constructor = $class->getConstructor();
 
-		try {
-			$args = $constructor ? $this->getFunctionArgs($constructor) : [];
-		} catch (ParameterResolveException $e) {
-			throw new ParameterResolveException($e->getMessage() . " of < $name >");
+		if ($constructor) {
+
+			$args = $this->getFunctionArgs($constructor);
+
+			return function () use ($class, $args) {
+				return $class->newInstanceArgs($args);
+			};
 		}
 
-		return function () use ($class, $args) {
-			// return new $name(...$args);
-			return $class->newInstanceArgs($args);
+		return function () use ($class) {
+			return $class->newInstanceWithoutConstructor();
 		};
 	}
 
@@ -170,9 +172,10 @@ final class Container implements ContainerInterface
 
 				$args[] = $param->getDefaultValue();
 			} else {
-				$pname = $param->getName();
-				$fname = $function->getName();
-				throw new ParameterResolveException("Unable to resolve < \$$pname > for < $fname >");
+				$paramName = $param->getName();
+				$functionName = $function->getName();
+				$ofClass = isset($function->class) ? " of < {$function->class} >" : '';
+				throw new ParameterResolveException("Unable to resolve < \$$paramName > for < $functionName >" . $ofClass);
 			}
 		}
 
