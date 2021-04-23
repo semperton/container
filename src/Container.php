@@ -79,6 +79,9 @@ final class Container implements ContainerInterface
 		return $container;
 	}
 
+	/**
+	 * @return mixed
+	 */
 	public function get(string $id)
 	{
 		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
@@ -192,17 +195,17 @@ final class Container implements ContainerInterface
 		return false;
 	}
 
+	/**
+	 * @return array<int, string>
+	 */
 	public function entries(): array
 	{
-		$entries = array_unique(
-			array_merge(
-				array_keys($this->entries),
-				array_keys($this->factories)
-			)
-		);
+		$entries = array_keys($this->entries);
+		$factories = array_keys($this->factories);
+		$combined = array_unique(array_merge($entries, $factories));
 
-		sort($entries, SORT_NATURAL | SORT_FLAG_CASE);
+		sort($combined, SORT_NATURAL | SORT_FLAG_CASE);
 
-		return $entries;
+		return $combined;
 	}
 }
