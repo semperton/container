@@ -54,6 +54,7 @@ final class Container implements ContainerInterface
 		$this->entries[self::class] = $this;
 		$this->entries[ContainerInterface::class] = $this;
 
+		/** @var mixed $entry */
 		foreach ($definitions as $id => $entry) {
 			$this->set($id, $entry);
 		}
@@ -125,6 +126,7 @@ final class Container implements ContainerInterface
 
 		$this->resolving[$id] = true;
 
+		/** @var mixed */
 		$entry = $this->factories[$id]($this);
 
 		unset($this->resolving[$id]);
@@ -170,9 +172,11 @@ final class Container implements ContainerInterface
 
 				$className = $type->getName();
 
+				/** @var mixed */
 				$args[] = $this->get($className);
 			} else if ($param->isOptional()) {
 
+				/** @var mixed */
 				$args[] = $param->getDefaultValue();
 			} else {
 				$paramName = $param->getName();
