@@ -14,6 +14,13 @@ use ReflectionClass;
 use ReflectionNamedType;
 use Closure;
 
+use function class_exists;
+use function array_key_exists;
+use function array_keys;
+use function array_unique;
+use function array_merge;
+use function sort;
+
 final class Container implements ContainerInterface
 {
 	/**
