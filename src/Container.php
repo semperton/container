@@ -14,6 +14,9 @@ use ReflectionClass;
 use ReflectionNamedType;
 use Closure;
 
+use const SORT_NATURAL;
+use const SORT_FLAG_CASE;
+
 use function class_exists;
 use function array_key_exists;
 use function array_keys;
