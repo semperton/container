@@ -10,10 +10,10 @@ use Semperton\Container\Exception\ParameterResolveException;
 use Semperton\Container\Exception\CircularReferenceException;
 use Semperton\Container\Exception\NotInstantiableException;
 use ReflectionFunctionAbstract;
-use ReflectionClass;
-use ReflectionNamedType;
-use Closure;
 use ReflectionFunction;
+use ReflectionNamedType;
+use ReflectionClass;
+use Closure;
 
 use const SORT_NATURAL;
 use const SORT_FLAG_CASE;
@@ -102,11 +102,19 @@ final class Container implements ContainerInterface
 			return $this->entries[$id];
 		}
 
+		$this->entries[$id] = $this->create($id);
+
+		return $this->entries[$id];
+	}
+
+	/**
+	 * @return mixed
+	 */
+	public function create(string $id)
+	{
 		if (isset($this->factories[$id])) {
 
-			$this->entries[$id] = $this->resolve($id);
-
-			return $this->entries[$id];
+			return $this->resolve($id);
 		}
 
 		if (isset($this->definitions[$id]) || array_key_exists($id, $this->definitions)) {
@@ -114,20 +122,18 @@ final class Container implements ContainerInterface
 			if (is_callable($this->definitions[$id])) {
 
 				$this->factories[$id] = $this->getClosureFactory($this->definitions[$id]);
-				$this->entries[$id] = $this->resolve($id);
-			} else {
-				$this->entries[$id] = &$this->definitions[$id];
+
+				return $this->resolve($id);
 			}
 
-			return $this->entries[$id];
+			return $this->definitions[$id];
 		}
 
 		if ($this->autowire && $this->canCreate($id)) {
 
 			$this->factories[$id] = $this->getClassFactory($id);
-			$this->entries[$id] = $this->resolve($id);
 
-			return $this->entries[$id];
+			return $this->resolve($id);
 		}
 
 		throw new NotFoundException("Entry for < $id > could not be resolved");
