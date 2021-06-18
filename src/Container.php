@@ -17,6 +17,7 @@ use Closure;
 use const SORT_NATURAL;
 use const SORT_FLAG_CASE;
 
+use function is_callable;
 use function class_exists;
 use function array_key_exists;
 use function array_keys;
@@ -70,9 +71,9 @@ final class Container implements ContainerInterface
 	{
 		unset($this->entries[$id], $this->factories[$id]);
 
-		if ($entry instanceof Closure) {
+		if (is_callable($entry)) {
 
-			$this->factories[$id] = $entry;
+			$this->factories[$id] = Closure::fromCallable($entry);
 		} else {
 			$this->entries[$id] = $entry;
 		}
