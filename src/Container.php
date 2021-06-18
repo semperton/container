@@ -13,6 +13,7 @@ use ReflectionFunctionAbstract;
 use ReflectionClass;
 use ReflectionNamedType;
 use Closure;
+use ReflectionFunction;
 
 use const SORT_NATURAL;
 use const SORT_FLAG_CASE;
@@ -130,8 +131,11 @@ final class Container implements ContainerInterface
 
 		$this->resolving[$id] = true;
 
+		$factory = new ReflectionFunction($this->factories[$id]);
+		$args = $this->getFunctionArgs($factory);
+
 		/** @var mixed */
-		$entry = $this->factories[$id]($this);
+		$entry = $factory->invokeArgs($args);
 
 		unset($this->resolving[$id]);
 
