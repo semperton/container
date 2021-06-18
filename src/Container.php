@@ -31,12 +31,17 @@ final class Container implements ContainerInterface
 	/**
 	 * @var array<string, mixed>
 	 */
-	protected $entries = [];
+	protected $definitions = [];
 
 	/**
 	 * @var array<string, Closure>
 	 */
 	protected $factories = [];
+
+	/**
+	 * @var array<string, mixed>
+	 */
+	protected $entries = [];
 
 	/**
 	 * @var array<string, true>
@@ -56,12 +61,12 @@ final class Container implements ContainerInterface
 		$this->autowire = $autowire;
 
 		// register self
-		$this->entries[self::class] = $this;
-		$this->entries[ContainerInterface::class] = $this;
+		$this->definitions[self::class] = $this;
+		$this->definitions[ContainerInterface::class] = $this;
 
 		/** @var mixed $entry */
 		foreach ($definitions as $id => $entry) {
-			$this->set($id, $entry);
+			$this->definitions[$id] = $entry;
 		}
 	}
 
@@ -70,14 +75,9 @@ final class Container implements ContainerInterface
 	 */
 	protected function set(string $id, $entry): void
 	{
-		unset($this->entries[$id], $this->factories[$id]);
+		unset($this->factories[$id], $this->entries[$id]);
 
-		if (is_callable($entry)) {
-
-			$this->factories[$id] = Closure::fromCallable($entry);
-		} else {
-			$this->entries[$id] = $entry;
-		}
+		$this->definitions[$id] = $entry;
 	}
 
 	/**
@@ -109,6 +109,19 @@ final class Container implements ContainerInterface
 			return $this->entries[$id];
 		}
 
+		if (isset($this->definitions[$id]) || array_key_exists($id, $this->definitions)) {
+
+			if (is_callable($this->definitions[$id])) {
+
+				$this->factories[$id] = $this->getClosureFactory($this->definitions[$id]);
+				$this->entries[$id] = $this->resolve($id);
+			} else {
+				$this->entries[$id] = &$this->definitions[$id];
+			}
+
+			return $this->entries[$id];
+		}
+
 		if ($this->autowire && $this->canCreate($id)) {
 
 			$this->factories[$id] = $this->getClassFactory($id);
@@ -131,15 +144,27 @@ final class Container implements ContainerInterface
 
 		$this->resolving[$id] = true;
 
-		$factory = new ReflectionFunction($this->factories[$id]);
-		$args = $this->getFunctionArgs($factory);
-
 		/** @var mixed */
-		$entry = $factory->invokeArgs($args);
+		$entry = $this->factories[$id]();
 
 		unset($this->resolving[$id]);
 
 		return $entry;
+	}
+
+	protected function getClosureFactory(callable $callable): Closure
+	{
+		$closure = Closure::fromCallable($callable);
+
+		$func = new ReflectionFunction($closure);
+
+		$args = $this->getFunctionArgs($func);
+
+		return
+			/** @return mixed */
+			function () use ($func, $args) {
+				return $func->invokeArgs($args);
+			};
 	}
 
 	protected function getClassFactory(string $name): Closure
@@ -205,8 +230,10 @@ final class Container implements ContainerInterface
 	public function has(string $id): bool
 	{
 		if (
-			isset($this->entries[$id]) || array_key_exists($id, $this->entries) ||
-			isset($this->factories[$id]) || $this->canCreate($id)
+			isset($this->definitions[$id]) ||
+			isset($this->factories[$id]) ||
+			array_key_exists($id, $this->definitions) ||
+			$this->canCreate($id)
 		) {
 			return true;
 		}
@@ -219,9 +246,9 @@ final class Container implements ContainerInterface
 	 */
 	public function entries(): array
 	{
-		$entries = array_keys($this->entries);
+		$definitions = array_keys($this->definitions);
 		$factories = array_keys($this->factories);
-		$combined = array_unique(array_merge($entries, $factories));
+		$combined = array_unique(array_merge($definitions, $factories));
 
 		sort($combined, SORT_NATURAL | SORT_FLAG_CASE);
 
