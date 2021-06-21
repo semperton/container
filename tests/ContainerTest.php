@@ -16,8 +16,10 @@ final class A
 
 final class B
 {
+	public $count;
 	public function __construct(A $a, int $count = 0)
 	{
+		$this->count = $count;
 	}
 }
 
@@ -177,5 +179,20 @@ final class ContainerTest extends TestCase
 			'foo'
 		];
 		$this->assertSame($expected, $entries);
+	}
+
+	public function testCreate()
+	{
+		$container = new Container();
+		$b1 = $container->create(B::class);
+		$b2 = $container->create(B::class);
+		$this->assertFalse($b1 === $b2);
+
+		$this->assertTrue($b1->count === 0 && $b2->count === 0);
+
+		$b3 = $container->create(B::class, [1 => 55]);
+		$b4 = $container->create(B::class, [1 => 42]);
+
+		$this->assertTrue($b3->count === 55 && $b4->count === 42);
 	}
 }
