@@ -24,19 +24,20 @@ use function array_key_exists;
 use function array_keys;
 use function array_unique;
 use function array_merge;
+use function array_replace;
 use function sort;
 
 final class Container implements ContainerInterface
 {
 	/**
-	 * @var array<string, mixed>
+	 * @var array<string, callable>
 	 */
-	protected $definitions = [];
+	protected $factories = [];
 
 	/**
 	 * @var array<string, Closure>
 	 */
-	protected $factories = [];
+	protected $cache = [];
 
 	/**
 	 * @var array<string, mixed>
@@ -62,7 +63,7 @@ final class Container implements ContainerInterface
 
 		/** @var mixed $entry */
 		foreach ($definitions as $id => $entry) {
-			$this->definitions[$id] = $entry;
+			$this->set($id, $entry);
 		}
 	}
 
@@ -71,9 +72,14 @@ final class Container implements ContainerInterface
 	 */
 	protected function set(string $id, $entry): void
 	{
-		unset($this->factories[$id], $this->entries[$id]);
+		unset($this->factories[$id], $this->cache[$id], $this->entries[$id]);
 
-		$this->definitions[$id] = $entry;
+		if ($entry instanceof Closure || (is_callable($entry) && !is_object($entry))) {
+
+			$this->factories[$id] = $entry;
+		} else {
+			$this->entries[$id] = $entry;
+		}
 	}
 
 	/**
@@ -98,10 +104,8 @@ final class Container implements ContainerInterface
 			return $this->entries[$id];
 		}
 
-		if (
-			($id === self::class || $id === ContainerInterface::class) &&
-			!array_key_exists($id, $this->definitions)
-		) {
+		if (($id === self::class || $id === ContainerInterface::class) && !isset($this->factories[$id])) {
+
 			return $this;
 		}
 
@@ -113,32 +117,25 @@ final class Container implements ContainerInterface
 	/**
 	 * @return mixed
 	 */
-	public function create(string $id)
+	public function create(string $id, array $args = [])
 	{
-		if (isset($this->factories[$id])) {
+		if (isset($this->cache[$id])) {
 
-			return $this->resolve($id);
+			return $this->resolve($id, $args);
 		}
 
-		if (isset($this->definitions[$id]) || array_key_exists($id, $this->definitions)) {
+		if (isset($this->factories[$id])) {
 
-			if (
-				$this->definitions[$id] instanceof Closure ||
-				(is_callable($this->definitions[$id]) && !is_object($this->definitions[$id]))
-			) {
-				$this->factories[$id] = $this->getClosureFactory($this->definitions[$id]);
+			$this->cache[$id] = $this->getClosureFactory($this->factories[$id]);
 
-				return $this->resolve($id);
-			}
-
-			return $this->definitions[$id];
+			return $this->resolve($id, $args);
 		}
 
 		if ($this->autowire && $this->canCreate($id)) {
 
-			$this->factories[$id] = $this->getClassFactory($id);
+			$this->cache[$id] = $this->getClassFactory($id);
 
-			return $this->resolve($id);
+			return $this->resolve($id, $args);
 		}
 
 		throw new NotFoundException("Entry for < $id > could not be resolved");
@@ -147,7 +144,7 @@ final class Container implements ContainerInterface
 	/**
 	 * @return mixed
 	 */
-	protected function resolve(string $id)
+	protected function resolve(string $id, array $args)
 	{
 		if (isset($this->resolving[$id])) {
 			throw new CircularReferenceException("Circular reference detected for < $id >");
@@ -156,7 +153,7 @@ final class Container implements ContainerInterface
 		$this->resolving[$id] = true;
 
 		/** @var mixed */
-		$entry = $this->factories[$id]();
+		$entry = $this->cache[$id]($args);
 
 		unset($this->resolving[$id]);
 
@@ -173,7 +170,9 @@ final class Container implements ContainerInterface
 
 		return
 			/** @return mixed */
-			function () use ($func, $args) {
+			function (array $oArgs) use ($func, $args) {
+
+				$args = array_replace($args, $oArgs);
 				return $func->invokeArgs($args);
 			};
 	}
@@ -191,7 +190,10 @@ final class Container implements ContainerInterface
 
 		$args = $constructor ? $this->getFunctionArgs($constructor) : [];
 
-		return function () use ($class, $args) {
+		return function (array $oArgs) use ($class, $args) {
+
+			/** @var array<int, mixed> */
+			$args = array_replace($args, $oArgs);
 			return $class->newInstanceArgs($args);
 		};
 	}
@@ -239,9 +241,9 @@ final class Container implements ContainerInterface
 	public function has(string $id): bool
 	{
 		if (
-			isset($this->definitions[$id]) ||
+			isset($this->entries[$id]) ||
 			isset($this->factories[$id]) ||
-			array_key_exists($id, $this->definitions) ||
+			array_key_exists($id, $this->entries) ||
 			$this->canCreate($id)
 		) {
 			return true;
@@ -255,9 +257,9 @@ final class Container implements ContainerInterface
 	 */
 	public function entries(): array
 	{
-		$definitions = array_keys($this->definitions);
+		$entries = array_keys($this->entries);
 		$factories = array_keys($this->factories);
-		$combined = array_unique(array_merge($definitions, $factories));
+		$combined = array_unique(array_merge($entries, $factories));
 
 		sort($combined, SORT_NATURAL | SORT_FLAG_CASE);
 
