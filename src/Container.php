@@ -60,10 +60,6 @@ final class Container implements ContainerInterface
 	{
 		$this->autowire = $autowire;
 
-		// register self
-		$this->definitions[self::class] = $this;
-		$this->definitions[ContainerInterface::class] = $this;
-
 		/** @var mixed $entry */
 		foreach ($definitions as $id => $entry) {
 			$this->definitions[$id] = $entry;
@@ -102,6 +98,13 @@ final class Container implements ContainerInterface
 			return $this->entries[$id];
 		}
 
+		if (
+			($id === self::class || $id === ContainerInterface::class) &&
+			!array_key_exists($id, $this->definitions)
+		) {
+			return $this;
+		}
+
 		$this->entries[$id] = $this->create($id);
 
 		return $this->entries[$id];
@@ -119,8 +122,10 @@ final class Container implements ContainerInterface
 
 		if (isset($this->definitions[$id]) || array_key_exists($id, $this->definitions)) {
 
-			if (is_callable($this->definitions[$id])) {
-
+			if (
+				$this->definitions[$id] instanceof Closure ||
+				(is_callable($this->definitions[$id]) && !is_object($this->definitions[$id]))
+			) {
 				$this->factories[$id] = $this->getClosureFactory($this->definitions[$id]);
 
 				return $this->resolve($id);
@@ -175,9 +180,7 @@ final class Container implements ContainerInterface
 
 	protected function getClassFactory(string $name): Closure
 	{
-		/**
-		 * @psalm-suppress ArgumentTypeCoercion
-		 */
+		/** @psalm-suppress ArgumentTypeCoercion */
 		$class = new ReflectionClass($name);
 
 		if (!$class->isInstantiable()) {

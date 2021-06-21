@@ -174,9 +174,7 @@ final class ContainerTest extends TestCase
 			B::class,
 			'bar',
 			C::class,
-			'foo',
-			ContainerInterface::class,
-			Container::class
+			'foo'
 		];
 		$this->assertSame($expected, $entries);
 	}
