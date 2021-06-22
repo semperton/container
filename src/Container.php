@@ -72,7 +72,7 @@ final class Container implements ContainerInterface
 	 */
 	protected function set(string $id, $entry): void
 	{
-		unset($this->factories[$id], $this->cache[$id], $this->entries[$id]);
+		unset($this->factories[$id], $this->entries[$id]);
 
 		if ($entry instanceof Closure || (is_callable($entry) && !is_object($entry))) {
 
@@ -104,14 +104,28 @@ final class Container implements ContainerInterface
 			return $this->entries[$id];
 		}
 
-		if (($id === self::class || $id === ContainerInterface::class) && !isset($this->factories[$id])) {
+		if (isset($this->factories[$id])) {
+
+			$factory = $this->getFactoryClosure($this->factories[$id]);
+
+			$this->entries[$id] = $this->resolve($id, $factory);
+
+			return $this->entries[$id];
+		}
+
+		if ($id === self::class || $id === ContainerInterface::class) {
 
 			return $this;
 		}
 
-		$this->entries[$id] = $this->create($id);
+		if ($this->autowire) {
 
-		return $this->entries[$id];
+			$this->entries[$id] = $this->create($id);
+
+			return $this->entries[$id];
+		}
+
+		throw new NotFoundException("Entry for < $id > could not be resolved");
 	}
 
 	/**
@@ -121,30 +135,23 @@ final class Container implements ContainerInterface
 	{
 		if (isset($this->cache[$id])) {
 
-			return $this->resolve($id, $args);
+			return $this->cache[$id]($args);
 		}
 
-		if (isset($this->factories[$id])) {
-
-			$this->cache[$id] = $this->getClosureFactory($this->factories[$id]);
-
-			return $this->resolve($id, $args);
-		}
-
-		if ($this->autowire && $this->canCreate($id)) {
+		if ($this->canCreate($id)) {
 
 			$this->cache[$id] = $this->getClassFactory($id);
 
-			return $this->resolve($id, $args);
+			return $this->cache[$id]($args);
 		}
 
-		throw new NotFoundException("Entry for < $id > could not be resolved");
+		throw new NotFoundException("Class < $id > could not be resolved");
 	}
 
 	/**
 	 * @return mixed
 	 */
-	protected function resolve(string $id, array $args)
+	protected function resolve(string $id, callable $func)
 	{
 		if (isset($this->resolving[$id])) {
 			throw new CircularReferenceException("Circular reference detected for < $id >");
@@ -153,14 +160,14 @@ final class Container implements ContainerInterface
 		$this->resolving[$id] = true;
 
 		/** @var mixed */
-		$entry = $this->cache[$id]($args);
+		$entry = $func();
 
 		unset($this->resolving[$id]);
 
 		return $entry;
 	}
 
-	protected function getClosureFactory(callable $callable): Closure
+	protected function getFactoryClosure(callable $callable): Closure
 	{
 		$closure = Closure::fromCallable($callable);
 
@@ -170,9 +177,7 @@ final class Container implements ContainerInterface
 
 		return
 			/** @return mixed */
-			function (array $oArgs) use ($func, $args) {
-
-				$args = array_replace($args, $oArgs);
+			function () use ($func, $args) {
 				return $func->invokeArgs($args);
 			};
 	}
