@@ -9,8 +9,8 @@ use Semperton\Container\Exception\NotFoundException;
 use Semperton\Container\Exception\ParameterResolveException;
 use Semperton\Container\Exception\CircularReferenceException;
 use Semperton\Container\Exception\NotInstantiableException;
-use ReflectionFunctionAbstract;
 use ReflectionFunction;
+use ReflectionParameter;
 use ReflectionNamedType;
 use ReflectionClass;
 use Closure;
@@ -24,7 +24,6 @@ use function array_key_exists;
 use function array_keys;
 use function array_unique;
 use function array_merge;
-use function array_replace;
 use function sort;
 
 final class Container implements ContainerInterface
@@ -171,14 +170,16 @@ final class Container implements ContainerInterface
 	{
 		$closure = Closure::fromCallable($callable);
 
-		$func = new ReflectionFunction($closure);
+		$function = new ReflectionFunction($closure);
 
-		$args = $this->getFunctionArgs($func);
+		$params = $function->getParameters();
+		$args = $this->resolveFunctionParams($params);
 
 		return
 			/** @return mixed */
-			function () use ($func, $args) {
-				return $func->invokeArgs($args);
+			function () use ($function, $args) {
+
+				return $function->invokeArgs($args);
 			};
 	}
 
@@ -192,27 +193,32 @@ final class Container implements ContainerInterface
 		}
 
 		$constructor = $class->getConstructor();
+		$params = $constructor ? $constructor->getParameters() : [];
 
-		$args = $constructor ? $this->getFunctionArgs($constructor) : [];
-
-		return function (array $oArgs) use ($class, $args) {
+		return function (array $args) use ($class, $params) {
 
 			/** @var array<int, mixed> */
-			$args = array_replace($args, $oArgs);
-			return $class->newInstanceArgs($args);
+			$newArgs = $this->resolveFunctionParams($params, $args);
+
+			return $class->newInstanceArgs($newArgs);
 		};
 	}
 
 	/**
-	 * @return array<int, mixed>
+	 * @param array<array-key, ReflectionParameter> $params
 	 */
-	protected function getFunctionArgs(ReflectionFunctionAbstract $function): array
+	protected function resolveFunctionParams(array $params, array $replace = []): array
 	{
-		$params = $function->getParameters();
-
 		$args = [];
 
-		foreach ($params as $param) {
+		foreach ($params as $key => $param) {
+
+			if (isset($replace[$key]) || array_key_exists($key, $replace)) {
+
+				/** @var mixed */
+				$args[] = $replace[$key];
+				continue;
+			}
 
 			/** @var null|ReflectionNamedType */
 			$type = $param->getType();
@@ -223,16 +229,21 @@ final class Container implements ContainerInterface
 
 				/** @var mixed */
 				$args[] = $this->get($className);
-			} else if ($param->isOptional()) {
+				continue;
+			}
+
+			if ($param->isOptional()) {
 
 				/** @var mixed */
-				$args[] = $param->getDefaultValue();
-			} else {
-				$paramName = $param->getName();
-				$functionName = $function->getName();
-				$ofClass = isset($function->class) ? " of < {$function->class} >" : '';
-				throw new ParameterResolveException("Unable to resolve < \$$paramName > for < $functionName >" . $ofClass);
+				$args[] =  $param->getDefaultValue();
+				continue;
 			}
+
+			$paramName = $param->getName();
+			$function = $param->getDeclaringFunction();
+			$functionName = $function->getName();
+			$ofClass = isset($function->class) ? " of < {$function->class} >" : '';
+			throw new ParameterResolveException("Unable to resolve < \$$paramName > for < $functionName >" . $ofClass);
 		}
 
 		return $args;
