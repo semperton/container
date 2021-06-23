@@ -174,7 +174,7 @@ final class Container implements ContainerInterface
 		$function = new ReflectionFunction($closure);
 
 		$params = $function->getParameters();
-		$args = $this->resolveFunctionParams($params);
+		$args = $params ? $this->resolveFunctionParams($params) : [];
 
 		return
 			/** @return mixed */
@@ -199,7 +199,7 @@ final class Container implements ContainerInterface
 		return function (array $args) use ($class, $params) {
 
 			/** @var array<int, mixed> */
-			$newArgs = $this->resolveFunctionParams($params, $args);
+			$newArgs = $params ? $this->resolveFunctionParams($params, $args) : [];
 
 			return $class->newInstanceArgs($newArgs);
 		};
