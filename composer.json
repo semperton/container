@@ -1,9 +1,10 @@
 {
     "name": "semperton/container",
-    "description": "The Semperton Container component.",
+    "description": "Dynamic PSR-11 container with reflection based autowiring.",
     "type": "library",
     "license": "MIT",
     "require": {
+        "php": ">=7.2.0",
         "psr/container": "^1.0"
     },
     "autoload": {
