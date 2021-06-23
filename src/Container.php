@@ -213,7 +213,7 @@ final class Container implements ContainerInterface
 
 		foreach ($params as $key => $param) {
 
-			if (isset($replace[$key]) || array_key_exists($key, $replace)) {
+			if ($replace && (isset($replace[$key]) || array_key_exists($key, $replace))) {
 
 				/** @var mixed */
 				$args[] = $replace[$key];
@@ -232,6 +232,15 @@ final class Container implements ContainerInterface
 				continue;
 			}
 
+			$paramName = $param->getName();
+
+			if ($this->has($paramName)) {
+
+				/** @var mixed */
+				$args[] = $this->get($paramName);
+				continue;
+			}
+
 			if ($param->isOptional()) {
 
 				/** @var mixed */
@@ -239,7 +248,6 @@ final class Container implements ContainerInterface
 				continue;
 			}
 
-			$paramName = $param->getName();
 			$function = $param->getDeclaringFunction();
 			$functionName = $function->getName();
 			$ofClass = isset($function->class) ? " of < {$function->class} >" : '';

@@ -58,6 +58,17 @@ final class ContainerTest extends TestCase
 		$this->assertTrue($container->has(A::class));
 	}
 
+	public function testFactoryClosure()
+	{
+		$container = new Container([
+			'count' => 5,
+			'count*2' => fn (int $count) => $count * 2
+		]);
+
+		$num = $container->get('count*2');
+		$this->assertEquals(10, $num);
+	}
+
 	public function testGetFactory()
 	{
 		$container = new Container(['foo' => function () {
@@ -194,5 +205,15 @@ final class ContainerTest extends TestCase
 		$b4 = $container->create(B::class, [1 => 42]);
 
 		$this->assertTrue($b3->count === 55 && $b4->count === 42);
+	}
+
+	public function testCreateAutoResolve()
+	{
+		$container = new Container([
+			'count' => 42
+		]);
+
+		$b = $container->get(B::class);
+		$this->assertEquals(42, $b->count);
 	}
 }
