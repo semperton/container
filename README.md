@@ -19,13 +19,17 @@ Container requires PHP 7.2+
 
 ## Interface
 
+```php
+new Container(iterable $definitions = [], bool $autowire = true)
+```
+
 The container ships with four public methods:
 
 ```php
 with(string $id, $value): Container // add a container entry
 get(string $id) // get entry (PSR-11)
 has(string $id): bool // has entry (PSR-11)
-create(string $id, array $args = []); // create a class with optional constructor substitution args
+create(string $id, array $params = []); // create a class with optional constructor substitution args
 entries(): array // list all container entries
 ```
 
@@ -59,8 +63,10 @@ class Hello
 
 $container = new Container();
 $hello = $container->get(Hello::class);
+$hello2 = $container->get(Hello::class);
 
 $hello instanceof Hello::class // true
+$hello === $hello2 // true
 $hello->print(); // 'Hello World'
 ```
 
@@ -93,7 +99,7 @@ The ```create()``` method will automatically resolve the ```Config``` dependency
 
 ## Configuration
 
-You can configure the container with definitions. ```callables``` (except invokable objects) are always treated as factories and can (!should) be used to bootstrap class instances:
+You can configure the container with definitions. ```Callables``` (except invokable objects) are always treated as factories and can (!should) be used to bootstrap class instances:
 
 ```php
 use Semperton\Container\Container;
@@ -114,13 +120,15 @@ $container = new Container([
 	}, // or
 	// factory params are automatically resolved from the container
 	MailFactory::class => fn (string $mail) => new MailFactory($mail),
-	Service::class => fn(Dependency $dep) => new Service($dep)
+	Service::class => fn (Dependency $dep) => new Service($dep)
 ]);
 
 $container->get('mail'); // 'local@host.local'
 $container->get('closure')(); // 42
 $container->get(MailFactory::class); // instance of MailFactory
 ```
+
+The ```with()``` method also treats ```callables``` as factories.
 
 ## Immutability
 
