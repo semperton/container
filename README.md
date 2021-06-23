@@ -86,7 +86,7 @@ class MailFactory
 }
 
 $mail1 = $container->get(MailFactory::class)->createMail('info@example.com');
-$mail2 = $container->create(Mail::class, [1 =>'info@example.com']);
+$mail2 = $container->create(Mail::class, ['to' =>'info@example.com']);
 
 ```
 The ```create()``` method will automatically resolve the ```Config``` dependency for ```Mail```.
