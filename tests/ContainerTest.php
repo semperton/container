@@ -62,7 +62,7 @@ final class ContainerTest extends TestCase
 	{
 		$container = new Container([
 			'count' => 5,
-			'count*2' => fn (int $count) => $count * 2
+			'count*2' => static fn (int $count) => $count * 2
 		]);
 
 		$num = $container->get('count*2');
@@ -71,7 +71,7 @@ final class ContainerTest extends TestCase
 
 	public function testGetFactory()
 	{
-		$container = new Container(['foo' => function () {
+		$container = new Container(['foo' => static function () {
 			return 42;
 		}]);
 		$this->assertEquals(42, $container->get('foo'));
@@ -79,8 +79,8 @@ final class ContainerTest extends TestCase
 
 	public function testGetClosure()
 	{
-		$container = new Container(['foo' => function () {
-			return function () {
+		$container = new Container(['foo' => static function () {
+			return static function () {
 				return 42;
 			};
 		}]);
@@ -92,7 +92,7 @@ final class ContainerTest extends TestCase
 	public function testGetInlineFactory()
 	{
 		$container = new Container();
-		$container = $container->with('factory', function (ContainerInterface $c) {
+		$container = $container->with('factory', static function (ContainerInterface $c) {
 			$b = $c->get(B::class);
 			return new class($b)
 			{
@@ -138,7 +138,7 @@ final class ContainerTest extends TestCase
 	public function testGetCircularReference()
 	{
 		$this->expectException(CircularReferenceException::class);
-		$container = new Container(['foo' => function (ContainerInterface $c) {
+		$container = new Container(['foo' => static function (ContainerInterface $c) {
 			return $c->get('foo');
 		}]);
 		$container->get('foo');
@@ -171,10 +171,10 @@ final class ContainerTest extends TestCase
 	{
 		$container = new Container([
 			'foo' => null,
-			'bar' => function () {
+			'bar' => static function () {
 				return 42;
 			},
-			C::class => function (Container $c) {
+			C::class => static function (Container $c) {
 				$b = $c->get(B::class);
 				return new C($b, 1);
 			}

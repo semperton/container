@@ -178,7 +178,7 @@ final class Container implements ContainerInterface
 
 		return
 			/** @return mixed */
-			function () use ($function, $args) {
+			static function () use ($function, $args) {
 
 				return $function->invokeArgs($args);
 			};

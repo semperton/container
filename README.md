@@ -107,20 +107,20 @@ use Semperton\Container\Container;
 $container = new Container([
 
 	'mail' => 'local@host.local',
-	'closure' => function () { // closures must be wrapped in another closure
-		return function () {
+	'closure' => static function () { // closures must be wrapped in another closure
+		return static function () {
 			return 42;
 		};
 	},
 	MailFactory::class => new MailFactory('local@host.local'), // avoid this, instead do
-	MailFactory::class => function (Container $c) { // lazy instantiation with a factory
+	MailFactory::class => static function (Container $c) { // lazy instantiation with a factory
 
 		$sender = $c->get('mail');
 		return new MailFactory($sender);
 	}, // or
 	// factory params are automatically resolved from the container
-	MailFactory::class => fn (string $mail) => new MailFactory($mail),
-	Service::class => fn (Dependency $dep) => new Service($dep)
+	MailFactory::class => static fn (string $mail) => new MailFactory($mail),
+	Service::class => static fn (Dependency $dep) => new Service($dep)
 ]);
 
 $container->get('mail'); // 'local@host.local'
