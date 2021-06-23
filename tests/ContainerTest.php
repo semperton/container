@@ -201,8 +201,8 @@ final class ContainerTest extends TestCase
 
 		$this->assertTrue($b1->count === 0 && $b2->count === 0);
 
-		$b3 = $container->create(B::class, [1 => 55]);
-		$b4 = $container->create(B::class, [1 => 42]);
+		$b3 = $container->create(B::class, ['count' => 55]);
+		$b4 = $container->create(B::class, ['count' => 42]);
 
 		$this->assertTrue($b3->count === 55 && $b4->count === 42);
 	}

@@ -128,20 +128,21 @@ final class Container implements ContainerInterface
 	}
 
 	/**
+	 * @param array<string, mixed> $params
 	 * @return mixed
 	 */
-	public function create(string $id, array $args = [])
+	public function create(string $id, array $params = [])
 	{
 		if (isset($this->cache[$id])) {
 
-			return $this->cache[$id]($args);
+			return $this->cache[$id]($params);
 		}
 
 		if ($this->canCreate($id)) {
 
 			$this->cache[$id] = $this->getClassFactory($id);
 
-			return $this->cache[$id]($args);
+			return $this->cache[$id]($params);
 		}
 
 		throw new NotFoundException("Class < $id > could not be resolved");
@@ -211,12 +212,14 @@ final class Container implements ContainerInterface
 	{
 		$args = [];
 
-		foreach ($params as $key => $param) {
+		foreach ($params as $param) {
 
-			if ($replace && (isset($replace[$key]) || array_key_exists($key, $replace))) {
+			$paramName = $param->getName();
+
+			if ($replace && (isset($replace[$paramName]) || array_key_exists($paramName, $replace))) {
 
 				/** @var mixed */
-				$args[] = $replace[$key];
+				$args[] = $replace[$paramName];
 				continue;
 			}
 
@@ -231,8 +234,6 @@ final class Container implements ContainerInterface
 				$args[] = $this->get($className);
 				continue;
 			}
-
-			$paramName = $param->getName();
 
 			if ($this->has($paramName)) {
 
