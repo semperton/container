@@ -15,7 +15,7 @@ Just use Composer:
 ```
 composer require semperton/container
 ```
-Container requires PHP 7.1+
+Container requires PHP 7.2+
 
 ## Interface
 
@@ -25,6 +25,7 @@ The container ships with four public methods:
 with(string $id, $value): Container // add a container entry
 get(string $id) // get entry (PSR-11)
 has(string $id): bool // has entry (PSR-11)
+create(string $id, array $args = []); // create a class with optional constructor substitution args
 entries(): array // list all container entries
 ```
 
@@ -63,38 +64,36 @@ $hello instanceof Hello::class // true
 $hello->print(); // 'Hello World'
 ```
 
-Note that the container only creates instances once. It does not work as a factory. You should consider the Factory Pattern instead:
+Note that the container only creates instances once. It does not work as a factory.
+You should consider the [Factory Pattern](https://designpatternsphp.readthedocs.io/en/latest/Creational/SimpleFactory/README.html) or use the ```create()``` method instead:
 
 ```php
 use Semperton\Container\Container;
 
 class Mail
 {
+	public function __construct(Config $c, string $to)
+	{
+	}
 }
 
 class MailFactory
 {
-	public function createMail()
+	public function createMail(string $to)
 	{
-		return new Mail();
+		return new Mail(new Config(), $to);
 	}
 }
 
-$container = new Container();
-$factory1 = $container->get(MailFactory::class);
-$factory2 = $container->get(MailFactory::class);
+$mail1 = $container->get(MailFactory::class)->createMail('info@example.com');
+$mail2 = $container->create(Mail::class, [1 =>'info@example.com']);
 
-$factory1 === $factory2 // true
-
-$mail1 = $factory1->createMail();
-$mail2 = $factory1->createMail();
-
-$mail1 === $mail2 // false
 ```
+The ```create()``` method will automatically resolve the ```Config``` dependency for ```Mail```.
 
 ## Configuration
 
-You can configure the container with definitions. Closures are always treated as factories and can (!should) be used to bootstrap class instances:
+You can configure the container with definitions. ```callables``` (except invokable objects) are always treated as factories and can (!should) be used to bootstrap class instances:
 
 ```php
 use Semperton\Container\Container;
@@ -102,7 +101,7 @@ use Semperton\Container\Container;
 $container = new Container([
 
 	'mail' => 'local@host.local',
-	'closure' => function () {
+	'closure' => function () { // closures must be wrapped in another closure
 		return function () {
 			return 42;
 		};
@@ -112,7 +111,10 @@ $container = new Container([
 
 		$sender = $c->get('mail');
 		return new MailFactory($sender);
-	}
+	}, // or
+	// factory params are automatically resolved from the container
+	MailFactory::class => fn (string $mail) => new MailFactory($mail),
+	Service::class => fn(Dependency $dep) => new Service($dep)
 ]);
 
 $container->get('mail'); // 'local@host.local'
