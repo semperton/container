@@ -12,6 +12,11 @@
             "Semperton\\Container\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Semperton\\Container\\Test\\": "tests/"
+        }
+    },
     "scripts": {
 		"test": "phpunit tests"
 	},

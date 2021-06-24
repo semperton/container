@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace Semperton\Container\Test;
+
+use Closure;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Semperton\Container\Container;
@@ -9,33 +12,10 @@ use Semperton\Container\Exception\CircularReferenceException;
 use Semperton\Container\Exception\NotFoundException;
 use Semperton\Container\Exception\NotInstantiableException;
 use Semperton\Container\Exception\ParameterResolveException;
-
-final class A
-{
-}
-
-final class B
-{
-	public $count;
-	public function __construct(A $a, int $count = 0)
-	{
-		$this->count = $count;
-	}
-}
-
-final class C
-{
-	public function __construct(B $b, ?int $count)
-	{
-	}
-}
-
-final class P
-{
-	private function __construct()
-	{
-	}
-}
+use Semperton\Container\Test\Mock\DepA;
+use Semperton\Container\Test\Mock\DepB;
+use Semperton\Container\Test\Mock\DepC;
+use Semperton\Container\Test\Mock\DepP;
 
 final class ContainerTest extends TestCase
 {
@@ -55,7 +35,7 @@ final class ContainerTest extends TestCase
 		$container = new Container(['foo' => 'bar']);
 		$this->assertTrue($container->has('foo'));
 		$this->assertFalse($container->has('bar'));
-		$this->assertTrue($container->has(A::class));
+		$this->assertTrue($container->has(DepA::class));
 	}
 
 	public function testFactoryClosure()
@@ -89,31 +69,6 @@ final class ContainerTest extends TestCase
 		$this->assertEquals(42, $closure());
 	}
 
-	public function testGetInlineFactory()
-	{
-		$container = new Container();
-		$container = $container->with('factory', static function (ContainerInterface $c) {
-			$b = $c->get(B::class);
-			return new class($b)
-			{
-				protected $b;
-				public function __construct(B $b)
-				{
-					$this->b = $b;
-				}
-				public function create()
-				{
-					return new C($this->b, 42);
-				}
-			};
-		});
-		$factory = $container->get('factory');
-		$obj1 = $factory->create();
-		$obj2 = $factory->create();
-		$this->assertInstanceOf(C::class, $obj1);
-		$this->assertFalse($obj1 === $obj2);
-	}
-
 	public function testGetNotFound()
 	{
 		$this->expectException(NotFoundException::class);
@@ -124,14 +79,15 @@ final class ContainerTest extends TestCase
 	public function testGetAutowire()
 	{
 		$container = new Container();
-		$this->assertInstanceOf(B::class, $container->get(B::class));
+		$b = $container->get(DepB::class);
+		$this->assertInstanceOf(DepB::class, $b);
 	}
 
 	public function testGetSingleInstance()
 	{
 		$container = new Container();
-		$obj1 = $container->get(A::class);
-		$obj2 = $container->get(A::class);
+		$obj1 = $container->get(DepA::class);
+		$obj2 = $container->get(DepA::class);
 		$this->assertEquals($obj1, $obj2);
 	}
 
@@ -148,14 +104,14 @@ final class ContainerTest extends TestCase
 	{
 		$this->expectException(NotInstantiableException::class);
 		$container = new Container();
-		$container->get(P::class);
+		$container->get(DepP::class);
 	}
 
 	public function testParameterResolve()
 	{
 		$this->expectException(ParameterResolveException::class);
 		$container = new Container();
-		$container->get(C::class);
+		$container->get(DepC::class);
 	}
 
 	public function testContainerImmutability()
@@ -174,46 +130,21 @@ final class ContainerTest extends TestCase
 			'bar' => static function () {
 				return 42;
 			},
-			C::class => static function (Container $c) {
-				$b = $c->get(B::class);
-				return new C($b, 1);
+			DepC::class => static function (Container $c) {
+				$b = $c->get(DepB::class);
+				return  new DepC($b, 'test');
 			}
 		]);
-		$obj = $container->get(C::class);
+		$c = $container->get(DepC::class);
+		$this->assertInstanceOf(DepC::class, $c);
 		$entries = $container->entries();
-		$this->assertInstanceOf(C::class, $obj);
 		$expected = [
-			A::class,
-			B::class,
 			'bar',
-			C::class,
-			'foo'
+			'foo',
+			DepA::class,
+			DepB::class,
+			DepC::class
 		];
 		$this->assertSame($expected, $entries);
-	}
-
-	public function testCreate()
-	{
-		$container = new Container();
-		$b1 = $container->create(B::class);
-		$b2 = $container->create(B::class);
-		$this->assertFalse($b1 === $b2);
-
-		$this->assertTrue($b1->count === 0 && $b2->count === 0);
-
-		$b3 = $container->create(B::class, ['count' => 55]);
-		$b4 = $container->create(B::class, ['count' => 42]);
-
-		$this->assertTrue($b3->count === 55 && $b4->count === 42);
-	}
-
-	public function testCreateAutoResolve()
-	{
-		$container = new Container([
-			'count' => 42
-		]);
-
-		$b = $container->get(B::class);
-		$this->assertEquals(42, $b->count);
 	}
 }
