@@ -71,7 +71,7 @@ final class Container implements ContainerInterface, FactoryInterface
 	 */
 	protected function set(string $id, $entry): void
 	{
-		unset($this->factories[$id], $this->entries[$id]);
+		unset($this->factories[$id], $this->cache[$id], $this->entries[$id]);
 
 		if ($entry instanceof Closure || (is_callable($entry) && !is_object($entry))) {
 
@@ -105,9 +105,7 @@ final class Container implements ContainerInterface, FactoryInterface
 
 		if (isset($this->factories[$id])) {
 
-			$factory = $this->getFactoryClosure($this->factories[$id]);
-
-			$this->entries[$id] = $this->resolve($id, $factory);
+			$this->entries[$id] = $this->create($id);
 
 			return $this->entries[$id];
 		}
@@ -127,6 +125,7 @@ final class Container implements ContainerInterface, FactoryInterface
 		throw new NotFoundException("Entry for < $id > could not be resolved");
 	}
 
+
 	/**
 	 * @param array<string, mixed> $params
 	 * @return mixed
@@ -135,23 +134,35 @@ final class Container implements ContainerInterface, FactoryInterface
 	{
 		if (isset($this->cache[$id])) {
 
-			return $this->cache[$id]($params);
+			return $this->resolve($id, $params);
+		}
+
+		if (isset($this->factories[$id])) {
+
+			$this->cache[$id] = $this->getFactoryClosure($this->factories[$id]);
+
+			return $this->resolve($id);
 		}
 
 		if ($this->canCreate($id)) {
 
 			$this->cache[$id] = $this->getClassFactory($id);
 
-			return $this->cache[$id]($params);
+			return $this->resolve($id, $params);
 		}
 
-		throw new NotFoundException("Class < $id > could not be resolved");
+		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
+
+			return $this->entries[$id];
+		}
+
+		throw new NotFoundException("Entry or class for < $id > could not be found");
 	}
 
 	/**
 	 * @return mixed
 	 */
-	protected function resolve(string $id, callable $func)
+	protected function resolve(string $id, array $params = [])
 	{
 		if (isset($this->resolving[$id])) {
 			throw new CircularReferenceException("Circular reference detected for < $id >");
@@ -160,7 +171,7 @@ final class Container implements ContainerInterface, FactoryInterface
 		$this->resolving[$id] = true;
 
 		/** @var mixed */
-		$entry = $func();
+		$entry = $this->cache[$id]($params);
 
 		unset($this->resolving[$id]);
 
@@ -174,11 +185,12 @@ final class Container implements ContainerInterface, FactoryInterface
 		$function = new ReflectionFunction($closure);
 
 		$params = $function->getParameters();
-		$args = $params ? $this->resolveFunctionParams($params) : [];
 
 		return
 			/** @return mixed */
-			static function () use ($function, $args) {
+			function () use ($function, $params) {
+
+				$args = $this->resolveFunctionParams($params);
 
 				return $function->invokeArgs($args);
 			};
@@ -199,7 +211,7 @@ final class Container implements ContainerInterface, FactoryInterface
 		return function (array $args) use ($class, $params) {
 
 			/** @var array<int, mixed> */
-			$newArgs = $params ? $this->resolveFunctionParams($params, $args) : [];
+			$newArgs = $this->resolveFunctionParams($params, $args);
 
 			return $class->newInstanceArgs($newArgs);
 		};
@@ -268,6 +280,7 @@ final class Container implements ContainerInterface, FactoryInterface
 		if (
 			isset($this->entries[$id]) ||
 			isset($this->factories[$id]) ||
+			isset($this->cache[$id]) ||
 			array_key_exists($id, $this->entries) ||
 			$this->canCreate($id)
 		) {
