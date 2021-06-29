@@ -26,7 +26,7 @@ new Container(iterable $definitions = [], bool $autowire = true)
 The container ships with four public methods:
 
 ```php
-with(string $id, $value): Container // add a container entry
+with(string $id, $entry): Container // add a container entry
 get(string $id) // get entry (PSR-11)
 has(string $id): bool // has entry (PSR-11)
 create(string $id, array $params = []); // create a class with optional constructor substitution args
