@@ -132,7 +132,7 @@ The ```with()``` method also treats ```callables``` as factories.
 
 ## Immutability
 
-Once the container ist created, it is immutable. If you like to add an entry after instantiation, keep in mind that the ```with()``` method always returns a new container instance:
+Once the container is created, it is immutable. If you like to add an entry after instantiation, keep in mind that the ```with()``` method always returns a new container instance:
 
 ```php
 use Semperton\Container\Container;
