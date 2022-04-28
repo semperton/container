@@ -18,7 +18,8 @@
         }
     },
     "scripts": {
-		"test": "phpunit tests"
+		"test": "phpunit tests",
+        "check": "psalm"
 	},
     "require-dev": {
         "phpunit/phpunit": "^9.5",
