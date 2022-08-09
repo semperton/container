@@ -125,7 +125,6 @@ final class Container implements ContainerInterface, FactoryInterface
 		throw new NotFoundException("Entry for < $id > could not be resolved");
 	}
 
-
 	/**
 	 * @param array<string, mixed> $params
 	 * @return mixed
@@ -141,7 +140,7 @@ final class Container implements ContainerInterface, FactoryInterface
 
 			$this->cache[$id] = $this->getFactoryClosure($this->factories[$id]);
 
-			return $this->resolve($id);
+			return $this->resolve($id, $params);
 		}
 
 		if ($this->canCreate($id)) {
