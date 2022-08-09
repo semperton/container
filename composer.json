@@ -1,6 +1,6 @@
 {
     "name": "semperton/container",
-    "description": "Dynamic PSR-11 container with reflection based autowiring.",
+    "description": "Dynamic PSR-11 dependency injection container with reflection based autowiring.",
     "type": "library",
     "license": "MIT",
     "require": {

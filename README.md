@@ -3,7 +3,7 @@
 <img width="140" src="https://raw.githubusercontent.com/semperton/.github/main/readme-logo.svg" alt="Semperton">
 </a>
 <h1>Semperton Container</h1>
-<p>A lightweight PSR-11 container implementation<br>with reflection based autowiring.</p>
+<p>A lightweight PSR-11 dependency injection container<br>with reflection based autowiring.</p>
 </div>
 
 ---
