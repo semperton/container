@@ -150,12 +150,7 @@ final class Container implements ContainerInterface, FactoryInterface
 			return $this->resolve($id, $params);
 		}
 
-		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
-
-			return $this->entries[$id];
-		}
-
-		throw new NotFoundException("Entry or class for < $id > could not be found");
+		throw new NotFoundException("Factory or class for < $id > could not be found");
 	}
 
 	/**
