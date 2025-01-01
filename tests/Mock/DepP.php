@@ -6,7 +6,5 @@ namespace Semperton\Container\Test\Mock;
 
 final class DepP
 {
-	private function __construct()
-	{
-	}
+	private function __construct() {}
 }

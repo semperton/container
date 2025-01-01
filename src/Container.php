@@ -29,96 +29,74 @@ use function sort;
 final class Container implements ContainerInterface, FactoryInterface
 {
 	/**
-	 * @var array<string, callable>
+	 * @var array<string, callable|Closure>
 	 */
-	protected $factories = [];
+	protected array $factories = [];
 
 	/**
 	 * @var array<string, Closure>
 	 */
-	protected $cache = [];
+	protected array $cache = [];
 
 	/**
 	 * @var array<string, mixed>
 	 */
-	protected $entries = [];
+	protected array $entries = [];
 
 	/**
 	 * @var array<string, true>
 	 */
-	protected $resolving = [];
-
-	/**
-	 * @var bool
-	 */
-	protected $autowire;
+	protected array $resolving = [];
 
 	/**
 	 * @param iterable<string, mixed> $definitions
 	 */
-	public function __construct(iterable $definitions = [], bool $autowire = true)
-	{
-		$this->autowire = $autowire;
-
+	public function __construct(
+		iterable $definitions = [],
+		protected bool $autowire = true
+	) {
 		/** @var mixed $entry */
 		foreach ($definitions as $id => $entry) {
 			$this->set($id, $entry);
 		}
 	}
 
-	/**
-	 * @param mixed $entry
-	 */
-	protected function set(string $id, $entry): void
+	protected function set(string $id, mixed $entry): void
 	{
 		unset($this->factories[$id], $this->cache[$id], $this->entries[$id]);
 
 		if ($entry instanceof Closure || (is_callable($entry) && !is_object($entry))) {
-
+			/** @var callable|Closure */
 			$this->factories[$id] = $entry;
 		} else {
 			$this->entries[$id] = $entry;
 		}
 	}
 
-	/**
-	 * @param mixed $entry
-	 */
-	public function with(string $id, $entry): Container
+	public function with(string $id, mixed $entry): Container
 	{
 		$container = clone $this;
-
 		$container->set($id, $entry);
-
 		return $container;
 	}
 
-	/**
-	 * @return mixed
-	 */
-	public function get(string $id)
+	public function get(string $id): mixed
 	{
 		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
-
 			return $this->entries[$id];
 		}
 
 		if (isset($this->factories[$id])) {
-
 			$this->entries[$id] = $this->create($id);
-
 			return $this->entries[$id];
 		}
 
 		if ($id === self::class || $id === ContainerInterface::class) {
-
 			return $this;
 		}
 
 		if ($this->autowire) {
-
 			$this->entries[$id] = $this->create($id);
-
 			return $this->entries[$id];
 		}
 
@@ -127,36 +105,27 @@ final class Container implements ContainerInterface, FactoryInterface
 
 	/**
 	 * @param array<string, mixed> $params
-	 * @return mixed
 	 */
-	public function create(string $id, array $params = [])
+	public function create(string $id, array $params = []): mixed
 	{
 		if (isset($this->cache[$id])) {
-
 			return $this->resolve($id, $params);
 		}
 
 		if (isset($this->factories[$id])) {
-
 			$this->cache[$id] = $this->getFactoryClosure($this->factories[$id]);
-
 			return $this->resolve($id, $params);
 		}
 
 		if ($this->canCreate($id)) {
-
 			$this->cache[$id] = $this->getClassFactory($id);
-
 			return $this->resolve($id, $params);
 		}
 
 		throw new NotFoundException("Factory or class for < $id > could not be found");
 	}
 
-	/**
-	 * @return mixed
-	 */
-	protected function resolve(string $id, array $params = [])
+	protected function resolve(string $id, array $params = []): mixed
 	{
 		if (isset($this->resolving[$id])) {
 			throw new CircularReferenceException("Circular reference detected for < $id >");
@@ -180,14 +149,10 @@ final class Container implements ContainerInterface, FactoryInterface
 
 		$params = $function->getParameters();
 
-		return
-			/** @return mixed */
-			function () use ($function, $params) {
-
-				$args = $this->resolveFunctionParams($params);
-
-				return $function->invokeArgs($args);
-			};
+		return function () use ($function, $params): mixed {
+			$args = $this->resolveFunctionParams($params);
+			return $function->invokeArgs($args);
+		};
 	}
 
 	protected function getClassFactory(string $name): Closure
@@ -204,15 +169,14 @@ final class Container implements ContainerInterface, FactoryInterface
 
 		return function (array $args) use ($class, $params) {
 
-			/** @var array<int, mixed> */
 			$newArgs = $this->resolveFunctionParams($params, $args);
-
 			return $class->newInstanceArgs($newArgs);
 		};
 	}
 
 	/**
 	 * @param array<array-key, ReflectionParameter> $params
+	 * @return array<int, mixed>
 	 */
 	protected function resolveFunctionParams(array $params, array $replace = []): array
 	{
@@ -233,9 +197,7 @@ final class Container implements ContainerInterface, FactoryInterface
 			$type = $param->getType();
 
 			if ($type && !$type->isBuiltin()) {
-
 				$className = $type->getName();
-
 				/** @var mixed */
 				$args[] = $this->get($className);
 				continue;
@@ -257,8 +219,9 @@ final class Container implements ContainerInterface, FactoryInterface
 
 			$function = $param->getDeclaringFunction();
 			$functionName = $function->getName();
+			/** @disregard P1014 Undefined type */
 			$ofClass = isset($function->class) ? " of < {$function->class} >" : '';
-			throw new ParameterResolveException("Unable to resolve < \$$paramName > for < $functionName >" . $ofClass);
+			throw new ParameterResolveException("Unable to resolve param < \$$paramName > for < $functionName >" . $ofClass);
 		}
 
 		return $args;

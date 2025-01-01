@@ -4,7 +4,7 @@
     "type": "library",
     "license": "MIT",
     "require": {
-        "php": ">=7.2.0",
+        "php": ">=8.0",
         "psr/container": "^1.1|^2.0"
     },
     "autoload": {
@@ -18,11 +18,14 @@
         }
     },
     "scripts": {
-		"test": "phpunit tests",
-        "check": "psalm"
-	},
+        "test": "phpunit tests",
+        "check": "psalm --no-cache"
+    },
     "require-dev": {
         "phpunit/phpunit": "^9.5",
         "vimeo/psalm": "^4.7"
+    },
+    "provide": {
+        "psr/container-implementation": "^1.0"
     }
 }

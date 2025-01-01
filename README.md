@@ -15,7 +15,7 @@ Just use Composer:
 ```
 composer require semperton/container
 ```
-Container requires PHP 7.2+
+Container requires PHP 8.0+
 
 ## Interface
 

@@ -27,7 +27,7 @@ final class DefinitionTest extends TestCase
 	public function testSimpleFactory()
 	{
 		$container = new Container([
-			DepA::class => static fn () => new DepA()
+			DepA::class => static fn() => new DepA()
 		]);
 		$this->assertInstanceOf(DepA::class, $container->get(DepA::class));
 	}
@@ -35,13 +35,13 @@ final class DefinitionTest extends TestCase
 	public function testFactoryContainer()
 	{
 		$container = new Container([
-			'container' => static fn (Container $c) => $c,
-			'interface' => static fn (ContainerInterface $c) => $c
+			'container' => static fn(Container $c) => $c,
+			'interface' => static fn(ContainerInterface $c) => $c
 		]);
 		$this->assertSame($container, $container->get('container'));
 		$this->assertSame($container, $container->get('interface'));
 
-		$container = $container->with(ContainerInterface::class, fn () => new Container());
+		$container = $container->with(ContainerInterface::class, fn() => new Container());
 
 		$this->assertNotSame($container->get('interface'), $container->get(ContainerInterface::class));
 	}
@@ -49,7 +49,7 @@ final class DefinitionTest extends TestCase
 	public function testFactoryDependency()
 	{
 		$container = new Container([
-			DepB::class => static fn (DepA $a) => new DepB($a)
+			DepB::class => static fn(DepA $a) => new DepB($a)
 		]);
 
 		$b = $container->get(DepB::class);
@@ -58,12 +58,23 @@ final class DefinitionTest extends TestCase
 		$this->assertInstanceOf(DepA::class, $b->a);
 	}
 
+	public function testFactoryOptionalDependency()
+	{
+		$container = new Container([
+			'factory' => static fn($name = 'optional') => fn() => $name
+		]);
+
+		$factory = $container->get('factory');
+
+		$this->assertEquals('optional', $factory());
+	}
+
 	public function testFactoryCircularReference()
 	{
 		$this->expectException(CircularReferenceException::class);
 
 		$container = new Container([
-			DepB::class => static fn (DepB $b) => $b
+			DepB::class => static fn(DepB $b) => $b
 		]);
 
 		$container->get(DepB::class);
@@ -74,7 +85,7 @@ final class DefinitionTest extends TestCase
 		$this->expectException(CircularReferenceException::class);
 
 		$container = new Container([
-			DepC::class => static fn (Container $c) => $c->create(DepC::class, ['name' => 'Semperton'])
+			DepC::class => static fn(Container $c) => $c->create(DepC::class, ['name' => 'Semperton'])
 		]);
 
 		$c = $container->get(DepC::class);

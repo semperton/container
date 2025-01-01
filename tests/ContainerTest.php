@@ -42,7 +42,7 @@ final class ContainerTest extends TestCase
 	{
 		$container = new Container([
 			'count' => 5,
-			'count*2' => static fn (int $count) => $count * 2
+			'count*2' => static fn(int $count) => $count * 2
 		]);
 
 		$num = $container->get('count*2');
@@ -121,6 +121,10 @@ final class ContainerTest extends TestCase
 		$newContainer = $container->with('foo', 'bar');
 		$this->assertEquals($container, $oldContainer);
 		$this->assertNotEquals($container, $newContainer);
+		$this->assertEquals('bar', $newContainer->get('foo'));
+
+		$this->expectException(NotFoundException::class);
+		$container->get('foo');
 	}
 
 	public function testListEntries()
