@@ -118,7 +118,7 @@ final class ContainerTest extends TestCase
 	{
 		$container = new Container();
 		$oldContainer = $container;
-		$newContainer = $container->with('foo', 'bar');
+		$newContainer = $container->withEntry('foo', 'bar');
 		$this->assertEquals($container, $oldContainer);
 		$this->assertNotEquals($container, $newContainer);
 		$this->assertEquals('bar', $newContainer->get('foo'));
@@ -145,6 +145,8 @@ final class ContainerTest extends TestCase
 		$expected = [
 			'bar',
 			'foo',
+			ContainerInterface::class,
+			Container::class,
 			DepA::class,
 			DepB::class,
 			DepC::class

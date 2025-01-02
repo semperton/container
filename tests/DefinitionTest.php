@@ -41,7 +41,7 @@ final class DefinitionTest extends TestCase
 		$this->assertSame($container, $container->get('container'));
 		$this->assertSame($container, $container->get('interface'));
 
-		$container = $container->with(ContainerInterface::class, fn() => new Container());
+		$container = $container->withEntry(ContainerInterface::class, fn() => new Container());
 
 		$this->assertNotSame($container->get('interface'), $container->get(ContainerInterface::class));
 	}

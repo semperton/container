@@ -18,18 +18,16 @@ use Closure;
 use const SORT_NATURAL;
 use const SORT_FLAG_CASE;
 
-use function is_callable;
 use function class_exists;
 use function array_key_exists;
 use function array_keys;
 use function array_unique;
-use function array_merge;
 use function sort;
 
 final class Container implements ContainerInterface, FactoryInterface
 {
 	/**
-	 * @var array<string, callable|Closure>
+	 * @var array<string, Closure>
 	 */
 	protected array $factories = [];
 
@@ -48,32 +46,53 @@ final class Container implements ContainerInterface, FactoryInterface
 	 */
 	protected array $resolving = [];
 
+	protected bool $autowire = true;
+
+	protected ?ContainerInterface $delegate = null;
+
 	/**
-	 * @param iterable<string, mixed> $definitions
+	 * @param iterable<string|class-string, mixed> $definitions
 	 */
-	public function __construct(
-		iterable $definitions = [],
-		protected bool $autowire = true
-	) {
+	public function __construct(iterable $definitions = [])
+	{
+		$this->set(self::class, $this);
+		$this->set(ContainerInterface::class, $this);
+
 		/** @var mixed $entry */
 		foreach ($definitions as $id => $entry) {
 			$this->set($id, $entry);
 		}
 	}
 
+	/**
+	 * @param mixed $entry
+	 */
 	protected function set(string $id, mixed $entry): void
 	{
 		unset($this->factories[$id], $this->cache[$id], $this->entries[$id]);
 
-		if ($entry instanceof Closure || (is_callable($entry) && !is_object($entry))) {
-			/** @var callable|Closure */
+		if ($entry instanceof Closure) {
 			$this->factories[$id] = $entry;
 		} else {
 			$this->entries[$id] = $entry;
 		}
 	}
 
-	public function with(string $id, mixed $entry): Container
+	public function withAutowiring(bool $flag): Container
+	{
+		$container = clone $this;
+		$container->autowire = $flag;
+		return $container;
+	}
+
+	public function withDelegate(ContainerInterface $delegate): Container
+	{
+		$container = clone $this;
+		$container->delegate = $delegate;
+		return $container;
+	}
+
+	public function withEntry(string $id, mixed $entry): Container
 	{
 		$container = clone $this;
 		$container->set($id, $entry);
@@ -91,16 +110,12 @@ final class Container implements ContainerInterface, FactoryInterface
 			return $this->entries[$id];
 		}
 
-		if ($id === self::class || $id === ContainerInterface::class) {
-			return $this;
+		if ($this->delegate?->has($id)) {
+			return $this->delegate->get($id);
 		}
 
-		if ($this->autowire) {
-			$this->entries[$id] = $this->create($id);
-			return $this->entries[$id];
-		}
-
-		throw new NotFoundException("Entry for < $id > could not be resolved");
+		$this->entries[$id] = $this->create($id);
+		return $this->entries[$id];
 	}
 
 	/**
@@ -113,51 +128,55 @@ final class Container implements ContainerInterface, FactoryInterface
 		}
 
 		if (isset($this->factories[$id])) {
-			$this->cache[$id] = $this->getFactoryClosure($this->factories[$id]);
+			$this->cache[$id] = $this->getClosureFactory($this->factories[$id]);
 			return $this->resolve($id, $params);
 		}
 
 		if ($this->canCreate($id)) {
+			/** @var class-string $id */
 			$this->cache[$id] = $this->getClassFactory($id);
 			return $this->resolve($id, $params);
 		}
 
-		throw new NotFoundException("Factory or class for < $id > could not be found");
+		throw new NotFoundException("Entry, factory or class for < $id > could not be resolved");
 	}
 
-	protected function resolve(string $id, array $params = []): mixed
+	protected function resolve(string $id, array $params): mixed
 	{
-		if (isset($this->resolving[$id])) {
-			throw new CircularReferenceException("Circular reference detected for < $id >");
+		try {
+			if (isset($this->resolving[$id])) {
+				$entries = array_keys($this->resolving);
+				$path = implode(' -> ', [...$entries, $id]);
+				throw new CircularReferenceException("Circular reference detected: $path");
+			}
+
+			$this->resolving[$id] = true;
+
+			/** @var mixed */
+			$entry = $this->cache[$id]($params);
+		} finally {
+			unset($this->resolving[$id]);
 		}
-
-		$this->resolving[$id] = true;
-
-		/** @var mixed */
-		$entry = $this->cache[$id]($params);
-
-		unset($this->resolving[$id]);
 
 		return $entry;
 	}
 
-	protected function getFactoryClosure(callable $callable): Closure
+	protected function getClosureFactory(Closure $closure): Closure
 	{
-		$closure = Closure::fromCallable($callable);
-
 		$function = new ReflectionFunction($closure);
-
 		$params = $function->getParameters();
 
-		return function () use ($function, $params): mixed {
-			$args = $this->resolveFunctionParams($params);
-			return $function->invokeArgs($args);
+		return function (array $args) use ($function, $params): mixed {
+			$newArgs = $this->resolveFunctionParams($params, $args, true);
+			return $function->invokeArgs($newArgs);
 		};
 	}
 
+	/**
+	 * @param class-string $name
+	 */
 	protected function getClassFactory(string $name): Closure
 	{
-		/** @psalm-suppress ArgumentTypeCoercion */
 		$class = new ReflectionClass($name);
 
 		if (!$class->isInstantiable()) {
@@ -165,11 +184,10 @@ final class Container implements ContainerInterface, FactoryInterface
 		}
 
 		$constructor = $class->getConstructor();
-		$params = $constructor ? $constructor->getParameters() : [];
+		$params = $constructor?->getParameters() ?? [];
 
 		return function (array $args) use ($class, $params) {
-
-			$newArgs = $this->resolveFunctionParams($params, $args);
+			$newArgs = $this->resolveFunctionParams($params, $args, false);
 			return $class->newInstanceArgs($newArgs);
 		};
 	}
@@ -178,7 +196,7 @@ final class Container implements ContainerInterface, FactoryInterface
 	 * @param array<array-key, ReflectionParameter> $params
 	 * @return array<int, mixed>
 	 */
-	protected function resolveFunctionParams(array $params, array $replace = []): array
+	protected function resolveFunctionParams(array $params, array $replace, bool $allowNames): array
 	{
 		$args = [];
 
@@ -186,32 +204,29 @@ final class Container implements ContainerInterface, FactoryInterface
 
 			$paramName = $param->getName();
 
-			if ($replace && (isset($replace[$paramName]) || array_key_exists($paramName, $replace))) {
-
+			if (isset($replace[$paramName]) || array_key_exists($paramName, $replace)) {
 				/** @var mixed */
 				$args[] = $replace[$paramName];
 				continue;
 			}
 
-			/** @var null|ReflectionNamedType */
 			$type = $param->getType();
 
-			if ($type && !$type->isBuiltin()) {
+			// we do not support union / intersection types for now
+			if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
 				$className = $type->getName();
 				/** @var mixed */
 				$args[] = $this->get($className);
 				continue;
 			}
 
-			if ($this->has($paramName)) {
-
+			if ($allowNames && $this->has($paramName)) {
 				/** @var mixed */
 				$args[] = $this->get($paramName);
 				continue;
 			}
 
 			if ($param->isOptional()) {
-
 				/** @var mixed */
 				$args[] =  $param->getDefaultValue();
 				continue;
@@ -229,7 +244,7 @@ final class Container implements ContainerInterface, FactoryInterface
 
 	protected function canCreate(string $name): bool
 	{
-		return class_exists($name);
+		return $this->autowire && class_exists($name);
 	}
 
 	public function has(string $id): bool
@@ -238,13 +253,16 @@ final class Container implements ContainerInterface, FactoryInterface
 			isset($this->entries[$id]) ||
 			isset($this->factories[$id]) ||
 			isset($this->cache[$id]) ||
-			array_key_exists($id, $this->entries) ||
-			$this->canCreate($id)
+			array_key_exists($id, $this->entries)
 		) {
 			return true;
 		}
 
-		return false;
+		if ($this->delegate?->has($id)) {
+			return true;
+		}
+
+		return $this->canCreate($id);
 	}
 
 	/**
@@ -254,7 +272,7 @@ final class Container implements ContainerInterface, FactoryInterface
 	{
 		$entries = array_keys($this->entries);
 		$factories = array_keys($this->factories);
-		$combined = array_unique(array_merge($entries, $factories));
+		$combined = array_unique([...$entries, ...$factories]);
 
 		sort($combined, SORT_NATURAL | SORT_FLAG_CASE);
 

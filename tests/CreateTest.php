@@ -35,7 +35,18 @@ final class CreateTest extends TestCase
 		$this->expectException(ParameterResolveException::class);
 
 		$container = new Container();
-		$c = $container->create(DepC::class);
+		$container->create(DepC::class);
+	}
+
+	public function testParameterException2()
+	{
+		$this->expectException(ParameterResolveException::class);
+
+		$container = new Container([
+			'name' => 'Semperton'
+		]);
+
+		$container->get(DepC::class);
 	}
 
 	public function testCreateArgs()
@@ -47,16 +58,6 @@ final class CreateTest extends TestCase
 
 		$this->assertInstanceOf(DepC::class, $c);
 		$this->assertInstanceOf(DepB::class, $c->b);
-		$this->assertEquals('Semperton', $c->name);
-	}
-
-	public function testCreateAutoResolve()
-	{
-		$container = new Container([
-			'name' => 'Semperton'
-		]);
-
-		$c = $container->get(DepC::class);
 		$this->assertEquals('Semperton', $c->name);
 	}
 }

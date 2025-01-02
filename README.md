@@ -20,16 +20,18 @@ Container requires PHP 8.0+
 ## Interface
 
 ```php
-new Container(iterable $definitions = [], bool $autowire = true)
+new Container(iterable $definitions = [])
 ```
 
 The container ships with four public methods:
 
 ```php
-with(string $id, $entry): Container // add a container entry
-get(string $id) // get entry (PSR-11)
+withAutowiring(bool $flag): Container // toggle autowiring
+withEntry(string $id, mixed $entry): Container // add a container entry
+withDelegate(ContainerInterface $delegate): Container // register a delegate container
+get(string $id): mixed // get entry (PSR-11)
 has(string $id): bool // has entry (PSR-11)
-create(string $id, array $params = []); // create a class with optional constructor substitution args
+create(string $id, array $params = []): mixed // create a class with optional constructor substitution args
 entries(): array // list all container entries
 ```
 
@@ -70,7 +72,7 @@ $hello === $hello2 // true
 $hello->print(); // 'Hello World'
 ```
 
-Note that the container only creates instances once. It does not work as a factory.
+Note that the container only creates (shared) instances once. It does not work as a factory.
 You should consider the [Factory Pattern](https://designpatternsphp.readthedocs.io/en/latest/Creational/SimpleFactory/README.html) or use the ```create()``` method instead:
 
 ```php
@@ -99,7 +101,7 @@ The ```create()``` method will automatically resolve the ```Config``` dependency
 
 ## Configuration
 
-You can configure the container with definitions. ```Callables``` (except invokable objects) are always treated as factories and can (!should) be used to bootstrap class instances:
+You can configure the container with definitions. ```Closures``` are always treated as factories and should be used to bootstrap class instances. If you like to use ```callables``` as factories: ```Closure::fromCallable([$object, 'method'])```.
 
 ```php
 use Semperton\Container\Container;
@@ -128,17 +130,17 @@ $container->get('closure')(); // 42
 $container->get(MailFactory::class); // instance of MailFactory
 ```
 
-The ```with()``` method also treats ```callables``` as factories.
+The ```withEntry()``` method also treats ```callables``` as factories.
 
 ## Immutability
 
-Once the container is created, it is immutable. If you like to add an entry after instantiation, keep in mind that the ```with()``` method always returns a new container instance:
+Once the container is created, it is immutable. If you like to add an entry after instantiation, keep in mind that the ```withEntry()``` method always returns a new container instance:
 
 ```php
 use Semperton\Container\Container;
 
 $container1 = new Container();
-$container2 = $container1->with('number', 42);
+$container2 = $container1->withEntry('number', 42);
 
 $container1->has('number'); // false
 $container2->has('number'); // true
