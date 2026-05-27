@@ -7,6 +7,6 @@ namespace Semperton\Container\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Exception;
 
-class NotInstantiableException extends Exception implements ContainerExceptionInterface
+final class NotInstantiableException extends Exception implements ContainerExceptionInterface
 {
 }
