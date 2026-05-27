@@ -22,8 +22,8 @@
         "check": "psalm --no-cache"
     },
     "require-dev": {
-        "phpunit/phpunit": "^9.5",
-        "vimeo/psalm": "^4.7"
+        "phpunit/phpunit": "^13.1",
+        "vimeo/psalm": "^6.16"
     },
     "provide": {
         "psr/container-implementation": "^1.0"
