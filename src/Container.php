@@ -217,9 +217,17 @@ final class Container implements ContainerInterface, FactoryInterface
 			// we do not support union / intersection types for now
 			if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
 				$className = $type->getName();
-				/** @var mixed */
-				$args[] = $this->get($className);
-				continue;
+
+				if ($this->has($className)) {
+					/** @var mixed */
+					$args[] = $this->get($className);
+					continue;
+				}
+
+				if ($type->allowsNull()) {
+					$args[] = null;
+					continue;
+				}
 			}
 
 			if ($allowNames && $this->has($paramName)) {
@@ -228,9 +236,9 @@ final class Container implements ContainerInterface, FactoryInterface
 				continue;
 			}
 
-			if ($param->isOptional()) {
+			if ($param->isDefaultValueAvailable()) {
 				/** @var mixed */
-				$args[] =  $param->getDefaultValue();
+				$args[] = $param->getDefaultValue();
 				continue;
 			}
 

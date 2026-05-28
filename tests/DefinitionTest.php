@@ -11,6 +11,7 @@ use Semperton\Container\Exception\CircularReferenceException;
 use Semperton\Container\Test\Mock\DepA;
 use Semperton\Container\Test\Mock\DepB;
 use Semperton\Container\Test\Mock\DepC;
+use Semperton\Container\Test\Mock\DepO;
 
 final class DefinitionTest extends TestCase
 {
@@ -58,7 +59,7 @@ final class DefinitionTest extends TestCase
 		$this->assertInstanceOf(DepA::class, $b->a);
 	}
 
-	public function testFactoryOptionalDependency()
+	public function testFactoryDefaultDependency()
 	{
 		$container = new Container([
 			'factory' => static fn($name = 'optional') => fn() => $name
@@ -67,6 +68,17 @@ final class DefinitionTest extends TestCase
 		$factory = $container->get('factory');
 
 		$this->assertEquals('optional', $factory());
+	}
+
+	public function testFactoryOptionalDependency()
+	{
+		$container = new Container([
+			DepO::class => static fn(?DepA $a) => new DepO($a)
+		]);
+		
+		$o = $container->withAutowiring(false)->get(DepO::class);
+
+		$this->assertNull($o->a);
 	}
 
 	public function testFactoryCircularReference()
