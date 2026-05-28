@@ -99,7 +99,6 @@ final class Container implements ContainerInterface, FactoryInterface
 		return $container;
 	}
 
-	#[\Override]
 	public function get(string $id): mixed
 	{
 		if (isset($this->entries[$id]) || array_key_exists($id, $this->entries)) {
@@ -122,7 +121,6 @@ final class Container implements ContainerInterface, FactoryInterface
 	/**
 	 * @param array<string, mixed> $params
 	 */
-	#[\Override]
 	public function create(string $id, array $params = []): mixed
 	{
 		if (isset($this->cache[$id])) {
@@ -257,7 +255,6 @@ final class Container implements ContainerInterface, FactoryInterface
 		return $this->autowire && class_exists($name);
 	}
 
-	#[\Override]
 	public function has(string $id): bool
 	{
 		if (
