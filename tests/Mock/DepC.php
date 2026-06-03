@@ -6,8 +6,8 @@ namespace Semperton\Container\Test\Mock;
 
 final class DepC
 {
-	public $b;
-	public $name;
+	public DepB $b;
+	public string $name;
 
 	public function __construct(DepB $b, string $name, int $age = 22)
 	{

@@ -167,7 +167,7 @@ final class Container implements ContainerInterface, FactoryInterface
 		$params = $function->getParameters();
 
 		return function (array $args) use ($function, $params): mixed {
-			$newArgs = $this->resolveFunctionParams($params, $args, true);
+			$newArgs = $this->resolveFunctionParams($params, $args);
 			return $function->invokeArgs($newArgs);
 		};
 	}
@@ -187,7 +187,7 @@ final class Container implements ContainerInterface, FactoryInterface
 		$params = $constructor?->getParameters() ?? [];
 
 		return function (array $args) use ($class, $params) {
-			$newArgs = $this->resolveFunctionParams($params, $args, false);
+			$newArgs = $this->resolveFunctionParams($params, $args);
 			return $class->newInstanceArgs($newArgs);
 		};
 	}
@@ -196,7 +196,7 @@ final class Container implements ContainerInterface, FactoryInterface
 	 * @param array<array-key, ReflectionParameter> $params
 	 * @return list<mixed>
 	 */
-	protected function resolveFunctionParams(array $params, array $replace, bool $allowNames): array
+	protected function resolveFunctionParams(array $params, array $replace): array
 	{
 		$args = [];
 
@@ -221,17 +221,6 @@ final class Container implements ContainerInterface, FactoryInterface
 					$args[] = $this->get($className);
 					continue;
 				}
-
-				if ($type->allowsNull()) {
-					$args[] = null;
-					continue;
-				}
-			}
-
-			if ($allowNames && $this->has($paramName)) {
-				/** @var mixed */
-				$args[] = $this->get($paramName);
-				continue;
 			}
 
 			if ($param->isDefaultValueAvailable()) {

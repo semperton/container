@@ -6,7 +6,7 @@ namespace Semperton\Container\Test\Mock;
 
 final class DepB
 {
-	public $a;
+	public DepA $a;
 
 	public function __construct(DepA $a)
 	{

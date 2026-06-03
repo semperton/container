@@ -73,7 +73,7 @@ final class DefinitionTest extends TestCase
 	public function testFactoryOptionalDependency()
 	{
 		$container = new Container([
-			DepO::class => static fn(?DepA $a) => new DepO($a)
+			DepO::class => static fn(?DepA $a = null) => new DepO($a)
 		]);
 		
 		$o = $container->withAutowiring(false)->get(DepO::class);

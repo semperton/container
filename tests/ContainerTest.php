@@ -42,7 +42,7 @@ final class ContainerTest extends TestCase
 	{
 		$container = new Container([
 			'count' => 5,
-			'count*2' => static fn(int $count) => $count * 2
+			'count*2' => static fn(Container $c) => $c->get('count') * 2
 		]);
 
 		$num = $container->get('count*2');
