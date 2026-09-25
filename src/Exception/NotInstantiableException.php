@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Semperton\Container\Exception;
 
-use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Exception;
 
-final class NotInstantiableException extends Exception implements ContainerExceptionInterface
+final class NotInstantiableException extends Exception implements NotFoundExceptionInterface
 {
 }
