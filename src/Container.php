@@ -23,7 +23,9 @@ use const SORT_FLAG_CASE;
 use function class_exists;
 use function array_key_exists;
 use function array_keys;
+use function array_push;
 use function array_unique;
+use function array_values;
 use function implode;
 use function is_array;
 use function sort;
@@ -135,26 +137,19 @@ final class Container implements ContainerInterface, FactoryInterface
 		}
 
 		$factory = $this->factories[$id] ?? null;
-
-		if ($factory !== null) {
-			$this->params[$id] ??= (new ReflectionFunction($factory))->getParameters();
-		} elseif (!$this->canCreate($id)) {
-			throw $this->autowire && class_exists($id)
-				? new NotInstantiableException("Unable to create < $id >, not instantiable")
-				: new NotFoundException("Entry, factory or class for < $id > could not be resolved");
-		}
+		$reflectedParams = $this->getParams($id, $factory);
 
 		$this->resolving[$id] = true;
 
 		try {
-			$args = $this->resolveParams($this->params[$id], $params);
+			$args = $this->resolveParams($reflectedParams, $params);
 
 			if ($factory !== null) {
 				return $factory(...$args);
 			}
 
 			/**
-			 * @var class-string $id checked by canCreate()
+			 * @var class-string $id checked by getParams()
 			 * @psalm-suppress MixedMethodCall constructor args are resolved via reflection
 			 */
 			return new $id(...$args);
@@ -173,7 +168,7 @@ final class Container implements ContainerInterface, FactoryInterface
 			|| isset($this->factories[$id])
 			|| $this->isSelf($id)
 			|| $this->delegate?->has($id) === true
-			|| $this->canCreate($id);
+			|| $this->canAutowire($id);
 	}
 
 	/**
@@ -206,7 +201,57 @@ final class Container implements ContainerInterface, FactoryInterface
 	}
 
 	/**
-	 * @param array<array-key, ReflectionParameter> $params
+	 * Returns the params of the factory or constructor that builds < $id >
+	 *
+	 * @return list<ReflectionParameter>
+	 */
+	private function getParams(string $id, ?Closure $factory): array
+	{
+		if ($factory !== null) {
+			return $this->params[$id] ??= (new ReflectionFunction($factory))->getParameters();
+		}
+
+		if ($this->canAutowire($id)) {
+			return $this->params[$id];
+		}
+
+		if ($this->autowire && class_exists($id)) {
+			throw new NotInstantiableException("Unable to create < $id >, not instantiable");
+		}
+
+		throw new NotFoundException("Entry, factory or class for < $id > could not be resolved");
+	}
+
+	/**
+	 * Checks whether < $id > can be autowired and caches its constructor params.
+	 * Only called for ids without a factory, so cached params always belong to a class.
+	 */
+	private function canAutowire(string $id): bool
+	{
+		if (!$this->autowire) {
+			return false;
+		}
+
+		if (isset($this->params[$id])) {
+			return true;
+		}
+
+		if (!class_exists($id)) {
+			return false;
+		}
+
+		$class = new ReflectionClass($id);
+
+		if (!$class->isInstantiable()) {
+			return false;
+		}
+
+		$this->params[$id] = $class->getConstructor()?->getParameters() ?? [];
+		return true;
+	}
+
+	/**
+	 * @param list<ReflectionParameter> $params
 	 * @param array<string, mixed> $replace
 	 * @return list<mixed>
 	 */
@@ -219,23 +264,13 @@ final class Container implements ContainerInterface, FactoryInterface
 
 			// variadic params are always last, they only receive explicitly passed values
 			if ($param->isVariadic()) {
-				if (!array_key_exists($name, $replace)) {
-					break;
-				}
-
-				/** @var mixed */
-				$values = $replace[$name];
+				$values = array_key_exists($name, $replace) ? $replace[$name] : [];
 
 				if (!is_array($values)) {
 					throw new ParameterResolveException("Unable to resolve variadic param < \$$name >, value must be an array");
 				}
 
-				/** @var mixed $value */
-				foreach ($values as $value) {
-					/** @var mixed */
-					$args[] = $value;
-				}
-
+				array_push($args, ...array_values($values));
 				break;
 			}
 
@@ -271,50 +306,29 @@ final class Container implements ContainerInterface, FactoryInterface
 				continue;
 			}
 
-			$functionName = $param->getDeclaringFunction()->getName();
-			$className = $param->getDeclaringClass()?->getName();
-			$message = "Unable to resolve param < \$$name > for < $functionName >";
-
-			if ($className !== null) {
-				$message .= " of < $className >";
-			}
-
-			if ($type !== null && !$type instanceof ReflectionNamedType) {
-				$message .= ", union / intersection types are not autowired, use a factory or pass the param explicitly";
-			}
-
-			throw new ParameterResolveException($message);
+			throw $this->unresolvableParam($param);
 		}
 
 		return $args;
 	}
 
-	/**
-	 * Checks whether < $id > can be autowired and caches its constructor params.
-	 * Only called for ids without a factory, so cached params always belong to a class.
-	 */
-	private function canCreate(string $id): bool
+	private function unresolvableParam(ReflectionParameter $param): ParameterResolveException
 	{
-		if (!$this->autowire) {
-			return false;
+		$functionName = $param->getDeclaringFunction()->getName();
+		$className = $param->getDeclaringClass()?->getName();
+		$type = $param->getType();
+
+		$message = "Unable to resolve param < \${$param->getName()} > for < $functionName >";
+
+		if ($className !== null) {
+			$message .= " of < $className >";
 		}
 
-		if (isset($this->params[$id])) {
-			return true;
+		if ($type !== null && !$type instanceof ReflectionNamedType) {
+			$message .= ", union / intersection types are not autowired, use a factory or pass the param explicitly";
 		}
 
-		if (!class_exists($id)) {
-			return false;
-		}
-
-		$class = new ReflectionClass($id);
-
-		if (!$class->isInstantiable()) {
-			return false;
-		}
-
-		$this->params[$id] = $class->getConstructor()?->getParameters() ?? [];
-		return true;
+		return new ParameterResolveException($message);
 	}
 
 	private function isSelf(string $id): bool
