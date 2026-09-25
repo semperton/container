@@ -44,14 +44,16 @@ final class DefinitionTest extends TestCase
 
 		$container = $container->withEntry(ContainerInterface::class, fn() => new Container());
 
-		$this->assertNotSame($container->get('interface'), $container->get(ContainerInterface::class));
+		$this->assertNotSame($container, $container->get(ContainerInterface::class));
+		$this->assertSame($container->get('interface'), $container->get(ContainerInterface::class));
+		$this->assertSame($container, $container->get('container'));
 	}
 
 	public function testFactoryDependency()
 	{
-		$container = new Container([
+		$container = (new Container([
 			DepB::class => static fn(DepA $a) => new DepB($a)
-		]);
+		]))->withAutowiring(true);
 
 		$b = $container->get(DepB::class);
 

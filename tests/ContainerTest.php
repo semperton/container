@@ -15,6 +15,7 @@ use Semperton\Container\Exception\ParameterResolveException;
 use Semperton\Container\Test\Mock\DepA;
 use Semperton\Container\Test\Mock\DepB;
 use Semperton\Container\Test\Mock\DepC;
+use Semperton\Container\Test\Mock\DepN;
 use Semperton\Container\Test\Mock\DepP;
 
 final class ContainerTest extends TestCase
@@ -32,7 +33,7 @@ final class ContainerTest extends TestCase
 
 	public function testHasValue()
 	{
-		$container = new Container(['foo' => 'bar']);
+		$container = (new Container(['foo' => 'bar']))->withAutowiring(true);
 		$this->assertTrue($container->has('foo'));
 		$this->assertFalse($container->has('bar'));
 		$this->assertTrue($container->has(DepA::class));
@@ -78,14 +79,14 @@ final class ContainerTest extends TestCase
 
 	public function testGetAutowire()
 	{
-		$container = new Container();
+		$container = (new Container())->withAutowiring(true);
 		$b = $container->get(DepB::class);
 		$this->assertInstanceOf(DepB::class, $b);
 	}
 
 	public function testGetSingleInstance()
 	{
-		$container = new Container();
+		$container = (new Container())->withAutowiring(true);
 		$obj1 = $container->get(DepA::class);
 		$obj2 = $container->get(DepA::class);
 		$this->assertEquals($obj1, $obj2);
@@ -103,14 +104,14 @@ final class ContainerTest extends TestCase
 	public function testClassNotInstantiable()
 	{
 		$this->expectException(NotInstantiableException::class);
-		$container = new Container();
+		$container = (new Container())->withAutowiring(true);
 		$container->get(DepP::class);
 	}
 
 	public function testParameterResolve()
 	{
 		$this->expectException(ParameterResolveException::class);
-		$container = new Container();
+		$container = (new Container())->withAutowiring(true);
 		$container->get(DepC::class);
 	}
 
@@ -129,7 +130,7 @@ final class ContainerTest extends TestCase
 
 	public function testListEntries()
 	{
-		$container = new Container([
+		$container = (new Container([
 			'foo' => null,
 			'bar' => static function () {
 				return 42;
@@ -138,7 +139,7 @@ final class ContainerTest extends TestCase
 				$b = $c->get(DepB::class);
 				return  new DepC($b, 'test');
 			}
-		]);
+		]))->withAutowiring(true);
 		$c = $container->get(DepC::class);
 		$this->assertInstanceOf(DepC::class, $c);
 		$entries = $container->entries();
@@ -152,5 +153,95 @@ final class ContainerTest extends TestCase
 			DepC::class
 		];
 		$this->assertSame($expected, $entries);
+	}
+
+	public function testClonedSelfReference()
+	{
+		$container = new Container();
+		$newContainer = $container->withEntry('number', 42);
+
+		$this->assertSame($newContainer, $newContainer->get(Container::class));
+		$this->assertSame($newContainer, $newContainer->get(ContainerInterface::class));
+		$this->assertSame($container, $container->get(Container::class));
+	}
+
+	public function testClonedFactoryCache()
+	{
+		$container = (new Container([
+			'factory' => static fn(DepA $a) => $a
+		]))->withAutowiring(true);
+		$container->create('factory');
+
+		$a = new DepA();
+		$newContainer = $container->withEntry(DepA::class, $a);
+
+		$this->assertSame($a, $newContainer->get('factory'));
+	}
+
+	public function testClonedResolvedInstances()
+	{
+		$container = (new Container())->withAutowiring(true);
+		$b = $container->get(DepB::class);
+
+		$a = new DepA();
+		$newContainer = $container->withEntry(DepA::class, $a);
+
+		$this->assertSame($b, $container->get(DepB::class));
+		$this->assertSame($a, $newContainer->get(DepB::class)->a);
+	}
+
+	public function testAbstractOptionalDependency()
+	{
+		$container = (new Container())->withAutowiring(true);
+		$n = $container->get(DepN::class);
+
+		$this->assertNull($n->abs);
+	}
+
+	public function testCaughtCircularReference()
+	{
+		$runs = 0;
+		$container = new Container([
+			'foo' => static function (Container $c) use (&$runs) {
+				$runs++;
+				try {
+					$c->get('foo');
+				} catch (CircularReferenceException) {
+				}
+				return $c->get('bar');
+			},
+			'bar' => static fn(Container $c) => $c->get('foo')
+		]);
+
+		try {
+			$container->get('foo');
+			$this->fail('Expected CircularReferenceException');
+		} catch (CircularReferenceException $e) {
+			$this->assertSame('Circular reference detected: foo -> bar -> foo', $e->getMessage());
+		}
+
+		$this->assertSame(1, $runs);
+	}
+
+	public function testAutowiringDisabledByDefault()
+	{
+		$container = new Container();
+
+		$this->assertFalse($container->has(DepA::class));
+
+		$this->expectException(NotFoundException::class);
+		$container->get(DepA::class);
+	}
+
+	public function testExplicitDefinitionsWithoutAutowiring()
+	{
+		$container = new Container([
+			DepA::class => new DepA(),
+			DepB::class => static fn(DepA $a) => new DepB($a)
+		]);
+
+		$this->assertSame($container, $container->get(Container::class));
+		$this->assertSame($container->get(DepA::class), $container->get(DepB::class)->a);
+		$this->assertInstanceOf(DepB::class, $container->create(DepB::class));
 	}
 }
