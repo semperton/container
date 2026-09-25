@@ -7,8 +7,10 @@ namespace Semperton\Container\Test;
 use Closure;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Semperton\Container\Container;
 use Semperton\Container\Exception\CircularReferenceException;
+use Semperton\Container\Exception\DependencyException;
 use Semperton\Container\Exception\NotFoundException;
 use Semperton\Container\Exception\NotInstantiableException;
 use Semperton\Container\Exception\ParameterResolveException;
@@ -16,6 +18,7 @@ use Semperton\Container\Test\Mock\DepA;
 use Semperton\Container\Test\Mock\DepB;
 use Semperton\Container\Test\Mock\DepC;
 use Semperton\Container\Test\Mock\DepN;
+use Semperton\Container\Test\Mock\DepV;
 use Semperton\Container\Test\Mock\DepP;
 
 final class ContainerTest extends TestCase
@@ -243,5 +246,60 @@ final class ContainerTest extends TestCase
 		$this->assertSame($container, $container->get(Container::class));
 		$this->assertSame($container->get(DepA::class), $container->get(DepB::class)->a);
 		$this->assertInstanceOf(DepB::class, $container->create(DepB::class));
+	}
+
+	public function testNotInstantiableIsNotFound()
+	{
+		$container = (new Container())->withAutowiring(true);
+
+		$this->assertFalse($container->has(DepP::class));
+
+		$this->expectException(NotFoundExceptionInterface::class);
+		$container->get(DepP::class);
+	}
+
+	public function testMissingDependencyIsWrapped()
+	{
+		$container = new Container([
+			'svc' => static fn(Container $c) => $c->get('missing')
+		]);
+
+		$this->assertTrue($container->has('svc'));
+
+		try {
+			$container->get('svc');
+			$this->fail('Expected DependencyException');
+		} catch (DependencyException $e) {
+			$this->assertNotInstanceOf(NotFoundExceptionInterface::class, $e);
+			$this->assertInstanceOf(NotFoundException::class, $e->getPrevious());
+		}
+	}
+
+	public function testVariadicNotAutowired()
+	{
+		$container = (new Container())->withAutowiring(true);
+		$v = $container->create(DepV::class);
+
+		$this->assertSame([], $v->deps);
+	}
+
+	public function testVariadicExplicitParam()
+	{
+		$container = new Container([
+			DepV::class => static fn(DepA ...$deps) => new DepV(...$deps)
+		]);
+		$a1 = new DepA();
+		$a2 = new DepA();
+		$v = $container->create(DepV::class, ['deps' => [$a1, $a2]]);
+
+		$this->assertSame([$a1, $a2], $v->deps);
+	}
+
+	public function testVariadicInvalidParam()
+	{
+		$this->expectException(ParameterResolveException::class);
+
+		$container = (new Container())->withAutowiring(true);
+		$container->create(DepV::class, ['deps' => new DepA()]);
 	}
 }
