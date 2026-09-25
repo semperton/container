@@ -23,10 +23,10 @@ Container requires PHP 8.0+
 new Container(iterable $definitions = [])
 ```
 
-The container ships with four public methods:
+The container ships with these public methods:
 
 ```php
-withAutowiring(bool $flag): Container // toggle autowiring
+withAutowiring(bool $flag): Container // toggle autowiring (disabled by default)
 withEntry(string $id, mixed $entry): Container // add a container entry
 withDelegate(ContainerInterface $delegate): Container // register a delegate container
 get(string $id): mixed // get entry (PSR-11)
@@ -38,6 +38,7 @@ entries(): array // list all container entries
 ## Usage
 
 Classes can be resolved automatically as long as they do not require any special configuration (autowiring).
+Autowiring is disabled by default and has to be enabled explicitly:
 
 ```php
 use Semperton\Container\Container;
@@ -63,7 +64,7 @@ class Hello
 	}
 }
 
-$container = new Container();
+$container = (new Container())->withAutowiring(true);
 $hello = $container->get(Hello::class);
 $hello2 = $container->get(Hello::class);
 
@@ -71,6 +72,8 @@ $hello instanceof Hello::class // true
 $hello === $hello2 // true
 $hello->print(); // 'Hello World'
 ```
+
+Without autowiring, only configured entries, factories and the container itself (```Container::class```, ```ContainerInterface::class```) can be resolved.
 
 Note that the container only creates (shared) instances once. It does not work as a factory.
 You should consider the [Factory Pattern](https://designpatternsphp.readthedocs.io/en/latest/Creational/SimpleFactory/README.html) or use the ```create()``` method instead:
@@ -98,6 +101,18 @@ $mail2 = $container->create(Mail::class, ['to' =>'info@example.com']);
 
 ```
 The ```create()``` method will automatically resolve the ```Config``` dependency for ```Mail```.
+It always builds a new instance, either with the registered factory or through autowiring. Existing entries and delegate entries are never returned by ```create()```.
+
+## Parameter resolving
+
+Factory and constructor params are resolved in this order:
+
+1. params passed to ```create()``` (by name)
+2. class-typed params the container can resolve
+3. declared default values
+
+Note that a resolvable class type always wins over a default value: ```Logger $logger = new NullLogger()``` receives the container's ```Logger``` when one can be resolved.
+Builtin types (```string```, ```int```, ...), union and intersection types are never guessed. Pass them to ```create()``` or use a factory, otherwise a ```ParameterResolveException``` is thrown.
 
 ## Configuration
 
@@ -119,9 +134,8 @@ $container = new Container([
 
 		$sender = $c->get('mail');
 		return new MailFactory($sender);
-	}, // or
-	// factory params are automatically resolved from the container
-	MailFactory::class => static fn (string $mail) => new MailFactory($mail),
+	},
+	// class-typed factory params are resolved from the container (configured entries or autowiring)
 	Service::class => static fn (Dependency $dep) => new Service($dep)
 ]);
 
@@ -130,7 +144,7 @@ $container->get('closure')(); // 42
 $container->get(MailFactory::class); // instance of MailFactory
 ```
 
-The ```withEntry()``` method also treats ```callables``` as factories.
+The ```withEntry()``` method also treats ```Closures``` as factories.
 
 ## Immutability
 
@@ -147,3 +161,26 @@ $container2->has('number'); // true
 
 $container1 === $container2 // false
 ```
+
+A new container instance does not share already resolved instances with its origin, so replaced entries are always taken into account:
+
+```php
+$container1 = new Container([
+	Dependency::class => new Dependency(),
+	Service::class => static fn (Dependency $dep) => new Service($dep)
+]);
+
+$service1 = $container1->get(Service::class);
+$service2 = $container1->withEntry(Dependency::class, new Dependency())->get(Service::class);
+
+$service1 === $service2 // false
+```
+
+## Upgrading from 3.x
+
+- Autowiring is disabled by default. Call ```withAutowiring(true)``` to restore the previous behavior.
+- Factory params are no longer resolved by name. Replace ```static fn (string $mail) => ...``` with ```static fn (ContainerInterface $c) => ... $c->get('mail')```, or pass the value to ```create()```.
+- Containers returned by ```withEntry()```, ```withAutowiring()``` and ```withDelegate()``` no longer share resolved instances with the original container. Services are rebuilt with the new configuration.
+- ```get(Container::class)``` on such a container returns the new container, not the original one.
+- ```has()``` returns ```false``` for classes that cannot be instantiated (abstract classes, private constructors).
+- Exception classes are ```final```.
