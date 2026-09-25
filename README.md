@@ -15,7 +15,7 @@ Just use Composer:
 ```
 composer require semperton/container
 ```
-Container requires PHP 8.0+
+Container requires PHP 8.2+
 
 ## Interface
 
@@ -113,6 +113,9 @@ Factory and constructor params are resolved in this order:
 
 Note that a resolvable class type always wins over a default value: ```Logger $logger = new NullLogger()``` receives the container's ```Logger``` when one can be resolved.
 Builtin types (```string```, ```int```, ...), union and intersection types are never guessed. Pass them to ```create()``` or use a factory, otherwise a ```ParameterResolveException``` is thrown.
+Variadic params only receive values passed explicitly as an array (```$container->create(Foo::class, ['items' => [$a, $b]])```), otherwise they stay empty.
+
+If an entry is known but one of its dependencies is missing, ```get()``` and ```create()``` throw a ```DependencyException``` (not a ```NotFoundExceptionInterface```), with the original exception as ```previous```.
 
 ## Configuration
 
@@ -178,9 +181,13 @@ $service1 === $service2 // false
 
 ## Upgrading from 3.x
 
+- PHP 8.2+ is required.
 - Autowiring is disabled by default. Call ```withAutowiring(true)``` to restore the previous behavior.
 - Factory params are no longer resolved by name. Replace ```static fn (string $mail) => ...``` with ```static fn (ContainerInterface $c) => ... $c->get('mail')```, or pass the value to ```create()```.
 - Containers returned by ```withEntry()```, ```withAutowiring()``` and ```withDelegate()``` no longer share resolved instances with the original container. Services are rebuilt with the new configuration.
 - ```get(Container::class)``` on such a container returns the new container, not the original one.
 - ```has()``` returns ```false``` for classes that cannot be instantiated (abstract classes, private constructors).
 - Exception classes are ```final```.
+- ```NotInstantiableException``` implements ```NotFoundExceptionInterface```.
+- A missing dependency inside a factory throws a ```DependencyException``` instead of letting the inner ```NotFoundException``` bubble up.
+- Variadic params are no longer autowired. Pass them explicitly as an array.
