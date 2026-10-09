@@ -1,0 +1,30 @@
+{
+    "name": "semperton/container-benchmark",
+    "description": "Benchmarks and PSR-11 interop tests for semperton/container against other containers.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2",
+        "psr/container": "^2.0",
+        "php-di/php-di": "^7.0",
+        "symfony/dependency-injection": "^7.3|^8.0",
+        "league/container": "^4.2|^5.0",
+        "phpbench/phpbench": "^1.4",
+        "phpunit/phpunit": "^13.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Semperton\\Container\\": "../src/",
+            "Semperton\\Container\\Benchmark\\": "src/",
+            "Semperton\\Container\\Benchmark\\Bench\\": "bench/",
+            "Semperton\\Container\\Benchmark\\Test\\": "tests/"
+        }
+    },
+    "scripts": {
+        "bench": "phpbench run --report=containers",
+        "test": "phpunit tests"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

@@ -3,3 +3,4 @@
 /README.md		export-ignore
 /tests			export-ignore
 /psalm.xml		export-ignore
+/benchmark		export-ignore

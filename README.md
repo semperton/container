@@ -191,3 +191,14 @@ $service1 === $service2 // false
 - ```NotInstantiableException``` implements ```NotFoundExceptionInterface```.
 - A missing dependency inside a factory throws a ```DependencyException``` instead of letting the inner ```NotFoundException``` bubble up.
 - Variadic params are no longer autowired. Pass them explicitly as an array.
+
+## Benchmarks
+
+The [benchmark](benchmark) directory compares the container with PHP-DI, Symfony DependencyInjection and League Container (PHPBench), and tests PSR-11 delegate interop with them:
+
+```
+cd benchmark
+composer install
+composer bench
+composer test
+```

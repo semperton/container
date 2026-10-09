@@ -1,0 +1,16 @@
+{
+    "$schema": "./vendor/phpbench/phpbench/phpbench.schema.json",
+    "runner.bootstrap": "vendor/autoload.php",
+    "runner.path": "bench",
+    "runner.revs": 1000,
+    "runner.iterations": 10,
+    "runner.warmup": 2,
+    "runner.retry_threshold": 5,
+    "report.generators": {
+        "containers": {
+            "extends": "aggregate",
+            "break": ["subject"],
+            "cols": ["set", "mem_peak", "mode", "rstdev"]
+        }
+    }
+}
